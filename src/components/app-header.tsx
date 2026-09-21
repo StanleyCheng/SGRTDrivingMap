@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import appIcon from "@/app/icon.png";
 import { useI18n } from "@/components/i18n-provider";
 import { LANGS } from "@/lib/i18n";
 
@@ -14,7 +13,7 @@ export interface AppHeaderProps {
 function LogoMark() {
   return (
     <Image
-      src={appIcon}
+      src={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/icon.png`}
       alt=""
       width={30}
       height={30}
