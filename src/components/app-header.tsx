@@ -1,6 +1,8 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
+import appIcon from "@/app/icon.png";
 import { useI18n } from "@/components/i18n-provider";
 import { LANGS } from "@/lib/i18n";
 
@@ -11,19 +13,14 @@ export interface AppHeaderProps {
 
 function LogoMark() {
   return (
-    <span className="grid size-[30px] shrink-0 place-items-center rounded-[9px] bg-ink">
-      <svg viewBox="0 0 20 20" className="size-[18px]" aria-hidden="true">
-        <path
-          d="M4.4 5.4h11.2"
-          stroke="#fff"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          fill="none"
-        />
-        <circle cx="10" cy="11.6" r="5" stroke="#fff" strokeWidth="1.6" fill="none" />
-        <circle cx="10" cy="11.6" r="1.7" fill="#fff" />
-      </svg>
-    </span>
+    <Image
+      src={appIcon}
+      alt=""
+      width={30}
+      height={30}
+      className="size-[34px] shrink-0 rounded-[var(--radius-control)] sm:size-10"
+      priority
+    />
   );
 }
 
