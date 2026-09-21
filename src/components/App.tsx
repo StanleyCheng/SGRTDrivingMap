@@ -8,7 +8,7 @@ import { LayerPanel } from "@/components/layer-panel";
 import { SourcesPanel } from "@/components/sources-panel";
 import { useI18n } from "@/components/i18n-provider";
 import type { MapFocus } from "@/components/MapView";
-import { loadCameras, loadTrafficImages, STATIC_MODE } from "@/lib/client-data";
+import { loadCameras, loadTrafficImages } from "@/lib/client-data";
 import type { CameraPoint, CamerasResponse, LayerId, TrafficImagesResponse } from "@/lib/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), {
@@ -58,7 +58,6 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch; state settles once the request resolves
     void loadTraffic(controller.signal);
     const timer = setInterval(() => void loadTraffic(), TRAFFIC_POLL_MS);
     return () => {

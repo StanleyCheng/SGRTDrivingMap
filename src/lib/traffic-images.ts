@@ -1,4 +1,4 @@
-import type { CameraKind, LayerId, TrafficCamera, TrafficImagesResponse } from "./types";
+import type { CameraKind, LayerId, TrafficCamera } from "./types";
 
 /**
  * Official camera names published by LTA on OneMotoring, keyed by CameraID.

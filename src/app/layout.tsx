@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 import { Archivo, Instrument_Serif } from "next/font/google";
 import { I18nProvider } from "@/components/i18n-provider";
 import "./globals.css";
@@ -30,7 +31,7 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
