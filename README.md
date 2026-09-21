@@ -25,7 +25,7 @@ The static export is what CI deploys; it needs no server, no API key and no data
 | Red-light cameras (240) | data.gov.sg — SPF Red Light Cameras `d_5f140c79…`, cross-checked with DTRLS `d_0b7ddc09…` |
 | Speed enforcement cameras (93) | data.gov.sg — SPF Fixed Speed `d_5fdeb9dc…`, Police Speed Laser `d_763b6039…`, Mobile Speed `d_e411f01a…`, consolidated list `d_983804de…` |
 | Traffic snapshot cameras (262) | data.gov.sg — LTA Road Camera `d_147f4906…` + LTA DataMall `Traffic-Imagesv2` (8 live stills) |
-| Basemap | OpenFreeMap Positron (keyless), automatic OpenStreetMap raster fallback |
+| Basemap | OpenStreetMap standard raster tiles (keyless), with automatic fallback from an optional custom MapLibre style |
 
 ## Setup
 
@@ -39,11 +39,13 @@ npm run dev
 
 ```
 DATAMALL_ACCOUNT_KEY=your_datamall_account_key
-# optional: any MapLibre style URL ("" forces the OSM raster fallback)
-NEXT_PUBLIC_MAP_STYLE=https://tiles.openfreemap.org/styles/positron
+# optional: override the default OpenStreetMap basemap with any MapLibre style URL
+NEXT_PUBLIC_MAP_STYLE=https://example.com/maplibre-style.json
 ```
 
-The DataMall key is used **server-side only** — it is never sent to the browser.
+The DataMall key is used **server-side only** — it is never sent to the browser. The standard
+OpenStreetMap basemap needs no configuration; if a custom style cannot be loaded, the map falls
+back to OpenStreetMap automatically.
 
 ## Scripts
 

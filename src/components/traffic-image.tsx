@@ -70,7 +70,7 @@ export function TrafficImage({
 
   return (
     <div>
-      <div className="relative aspect-video w-full overflow-hidden rounded-[10px] border border-[var(--line)] bg-[var(--surface-2)]">
+      <div className="relative aspect-video w-full overflow-hidden rounded-[var(--radius-control)] border border-line bg-sky">
         {status === "loading" && (
           <>
             <div className="skeleton absolute inset-0" />

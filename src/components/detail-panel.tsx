@@ -1,6 +1,7 @@
 "use client";
 
 import { formatCoords, formatDate } from "@/lib/format";
+import type { CSSProperties } from "react";
 import { LAYER_BY_ID, layerColor } from "@/lib/layers";
 import type { CameraPoint, LayerInfo } from "@/lib/types";
 import { useI18n } from "./i18n-provider";
@@ -89,7 +90,7 @@ export function DetailPanel({
 }: DetailPanelProps) {
   const { t, lang } = useI18n();
 
-  const shell = `panel rise w-[min(92vw,360px)] p-4 max-h-[70vh] overflow-y-auto scroll-thin ${className}`;
+  const shell = `panel atlas-detail rise w-[min(92vw,360px)] p-5 max-h-[70vh] overflow-y-auto scroll-thin ${className}`;
 
   if (!point) {
     return (
@@ -116,13 +117,7 @@ export function DetailPanel({
   ];
 
   return (
-    <div className={shell}>
-      <div
-        className="-mx-4 -mt-4 mb-3 h-[3px] rounded-t-[13px]"
-        style={{ background: color }}
-        aria-hidden="true"
-      />
-
+    <div className={shell} style={{ "--detail-color": color } as CSSProperties}>
       <div className="flex items-start justify-between gap-3">
         <span
           className="inline-flex items-center rounded-full px-2 py-[3px] text-[11px] font-semibold"
@@ -138,14 +133,14 @@ export function DetailPanel({
           onClick={onClose}
           data-tip={t("common.close")}
           aria-label={t("common.close")}
-          className="tip tip-right -mt-1 -mr-1 grid h-8 w-8 place-items-center rounded-lg text-[var(--muted)] hover:bg-[var(--surface-2)] hover:text-[var(--ink)]"
+          className="tip tip-right atlas-icon-button -mt-1 -mr-1"
         >
           <CloseGlyph />
         </button>
       </div>
 
       <h2
-        className={`mt-2 text-[17px] leading-snug font-semibold ${lang === "zh" ? "tracking-tight" : ""}`}
+        className={`mt-3 text-[20px] leading-snug font-semibold ${lang === "zh" ? "tracking-tight" : ""}`}
       >
         {title}
       </h2>
@@ -170,11 +165,11 @@ export function DetailPanel({
         </span>
       )}
 
-      <dl className="mt-3">
+      <dl className="mt-4 rounded-[var(--radius-control)] border border-line bg-surface-2 px-3">
         {rows.map((row) => (
           <div
             key={row.label}
-            className="flex flex-col gap-0.5 border-t border-[var(--line)] py-2 sm:flex-row sm:items-baseline sm:gap-3"
+            className="flex flex-col gap-1 border-t border-line py-2.5 first:border-t-0 sm:flex-row sm:items-baseline sm:gap-3"
           >
             <dt className="label text-[var(--muted)] sm:w-24 sm:shrink-0">{row.label}</dt>
             <dd
@@ -204,7 +199,7 @@ export function DetailPanel({
         <button
           type="button"
           onClick={() => onZoom(point)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--line)] px-2.5 py-1.5 text-[12px] font-medium hover:border-[var(--line-strong)] hover:bg-[var(--surface-2)]"
+          className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-accent px-3.5 py-2 text-[12px] font-medium text-accent-ink transition-colors hover:bg-ink"
         >
           <CrosshairGlyph size={14} />
           {t("detail.zoom")}

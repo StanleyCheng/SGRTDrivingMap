@@ -8,18 +8,13 @@ import { LAYERS } from "@/lib/layers";
 import type { CameraKind, CameraPoint, LayerId } from "@/lib/types";
 import { useI18n } from "./i18n-provider";
 
-const TILES = [
-  "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
-  "https://c.tile.openstreetmap.org/{z}/{x}/{y}.png",
-];
+const TILES = ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"];
 
-/** Keyless vector basemap; override with NEXT_PUBLIC_MAP_STYLE (or "" to force raster). */
-const MAP_STYLE_URL =
-  process.env.NEXT_PUBLIC_MAP_STYLE ?? "https://tiles.openfreemap.org/styles/positron";
+/** Optional custom MapLibre style URL; the standard OpenStreetMap tiles are the default. */
+const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE;
 
-/** Used when the vector style cannot be reached — the map is never left blank. */
-const FALLBACK_STYLE = {
+/** Default and fallback style, so a failed custom style never leaves the map blank. */
+const OSM_STYLE = {
   version: 8 as const,
   glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
   sources: {
@@ -27,7 +22,8 @@ const FALLBACK_STYLE = {
       type: "raster" as const,
       tiles: TILES,
       tileSize: 256,
-      attribution: "© OpenStreetMap contributors",
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     },
   },
   layers: [
@@ -36,13 +32,12 @@ const FALLBACK_STYLE = {
       id: "basemap",
       type: "raster" as const,
       source: "basemap",
-      paint: { "raster-saturation": -0.35, "raster-brightness-max": 0.95 },
     },
   ],
 };
 
 async function resolveStyle() {
-  if (!MAP_STYLE_URL) return FALLBACK_STYLE;
+  if (!MAP_STYLE_URL) return OSM_STYLE;
   try {
     const res = await fetch(MAP_STYLE_URL, { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
@@ -52,7 +47,7 @@ async function resolveStyle() {
   } catch {
     /* offline / blocked — fall through to raster tiles */
   }
-  return FALLBACK_STYLE;
+  return OSM_STYLE;
 }
 
 export const SG_CENTER: [number, number] = [103.8198, 1.3521];
@@ -213,7 +208,7 @@ export default function MapView({
           filter: ["has", "point_count"],
           layout: {
             "text-field": ["get", "point_count_abbreviated"],
-            "text-font": ["Noto Sans Regular"],
+            "text-font": ["Open Sans Semibold"],
             "text-size": 12,
           },
           paint: { "text-color": "#ffffff" },

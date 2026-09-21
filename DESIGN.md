@@ -1,42 +1,46 @@
-# Design system — “City Instrument Panel”
+# Design system — “Pastel Civic Atlas”
 
 Reference for every UI change in this repo. Tokens live in `src/app/globals.css`
 (Tailwind v4 `@theme inline`); never hardcode a colour, radius or font in a component.
 
 ## Direction
 
-A public-information instrument: warm paper canvas, ink typography, hairline rules,
-tabular figures, one signal-red accent. Restraint over decoration — the map is the hero and
-chrome must never compete with it. Bilingual by default: English and 繁體中文 are equal
-citizens, so nothing may be designed as a first-language-only layout.
+A calm public-information atlas: mint framing, warm ivory paper, forest-green ink,
+and tactile inset cards in peach, butter, and sky. The map remains the main canvas;
+pastel fills organize controls while stronger signal colours identify camera layers.
+Bilingual by default: English and 繁體中文 are equal citizens, with flexible labels and
+wrapping metadata instead of a first-language-only layout.
 
 ## Tokens
 
 | Token | Value | Use |
 |---|---|---|
-| `--paper` | `#f3f0ea` | app canvas behind floating cards |
-| `--surface` / `--surface-2` | `#ffffff` / `#faf8f4` | cards, hover fills |
-| `--ink` / `--ink-2` | `#17130f` / `#4b453d` | primary / secondary text |
-| `--muted` | `#857e74` | meta text, labels |
-| `--line` / `--line-strong` | `#dcd6cc` / `#c2bab0` | 1 px separators, control borders |
-| `--accent` | `#c0392b` | focus ring, active states, brand |
-| `--c-redlight` | `#d92d20` | red-light camera layer |
-| `--c-speed` | `#6d28d9` | speed enforcement layer |
-| `--c-snapshot` | `#0e7490` | traffic snapshot layer (+ live) |
+| `--paper` | `#f4f6f0` | app canvas behind floating cards |
+| `--surface` / `--surface-2` | `#fffef9` / `#edf3ed` | cards, inset data surfaces |
+| `--ink` / `--ink-2` | `#203b36` / `#405b52` | primary / secondary text |
+| `--muted` | `#63736b` | readable metadata and labels |
+| `--line` / `--line-strong` | `#d8e2d8` / `#a8bcb0` | 1 px separators, control borders |
+| `--accent` | `#286453` | focus ring, active language, primary action |
+| `--mint` | `#dceee4` | header, collapsed layer control, hover fills |
+| `--peach` / `--butter` / `--sky` | `#f7e1d4` / `#f3edce` / `#e0edf4` | red-light / speed / snapshot card tints |
+| `--c-redlight` | `#aa5648` | red-light camera signal |
+| `--c-speed` | `#947029` | speed enforcement signal |
+| `--c-snapshot` | `#3e718b` | traffic snapshot signal (+ live) |
 | `--ok` / `--warn` / `--err` | `#15803d` / `#b45309` / `#b42318` | status |
-| `--radius` / `--shadow-panel` | `14px` / soft two-layer shadow | floating cards |
+| `--radius` / `--radius-control` | `20px` / `12px` | floating cards / controls |
+| `--shadow-panel` | soft forest-tinted shadow and inset highlight | floating-card depth |
 
 Layer colours are **double-encoded**: each layer also has its own marker shape
-(circle = red-light, diamond = speed, rounded square = snapshot) so hue is never the only
+(circle = red-light, triangle = speed, camera rectangle = snapshot) so hue is never the only
 signal.
 
 ## Typography
 
-- Display / wordmark: **Instrument Serif** (`font-display`) — editorial counterweight to the map.
+- Display / wordmark: **Instrument Serif** (`font-display`) — an atlas-like editorial counterweight to the map; 23 px desktop wordmark and 28 px modal heading.
 - UI + numbers: **Archivo** (`font-sans`, default body font) with tabular figures.
 - CJK: `Noto Sans TC → PingFang TC → Microsoft JhengHei → Heiti TC` fallbacks; Chinese text
   is tracked slightly tighter where it sits next to Latin.
-- Micro-labels: `.label` = 10 px / uppercase / `0.14em` tracking / 600. Never shout in
+- Micro-labels: `.label` = 10 px / uppercase / `0.1em` tracking / 600. Never shout in
   sentence case where a label is required.
 
 ## Motion
@@ -47,14 +51,21 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
 
 ## Layout rules
 
-- Desktop: map fills the viewport; header top-left, layer panel under it, detail card
+- Desktop: map fills the viewport; mint header top-left, layer panel under it, detail card
   top-right, MapLibre controls bottom-right, freshness chip bottom-centre.
 - Mobile: header pinned to the top, layer panel becomes a bottom sheet (collapsed by
   default; it retracts while a detail card is open), detail card is a bottom sheet.
-- Floating cards use `.panel` (translucent surface + 14 px blur + hairline + shadow) and one
-  of two radii: card `14px`, control `10px`. Cards never position themselves — the parent
+- Floating cards use `.panel` (96% ivory surface + 16 px blur + hairline + shadow) and one
+  of two radii: card `20px`, control `12px`. Inset layer cards use `14px`. Cards never position themselves — the parent
   owns layout so the map can inset them.
 - Touch targets ≥ 40 px; icon-only buttons carry `aria-label` **and** a `.tip` tooltip.
+- Layer cards keep their own tinted fill, a white-backed glyph, large count, and a
+  40 px switch target. An inactive card returns to ivory; state is also exposed to
+  assistive technology. Metadata can wrap without pushing a switch out of the card.
+- Detail panels use the selected layer's narrow top rule, an inset metadata block,
+  and a forest-green zoom action. Source sections repeat the same three pastel fills.
+- No decorative gradients or map-wide CSS filters; colour changes must preserve
+  readable basemap labels and distinct camera signals.
 
 ## Content rules
 

@@ -58,7 +58,9 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    void loadTraffic(controller.signal);
+    void loadTraffic(controller.signal).catch((err: Error) => {
+      if (err.name !== "AbortError") throw err;
+    });
     const timer = setInterval(() => void loadTraffic(), TRAFFIC_POLL_MS);
     return () => {
       controller.abort();

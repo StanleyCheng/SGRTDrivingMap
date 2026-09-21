@@ -69,37 +69,36 @@ export function SourcesPanel({ layers, open, onClose }: SourcesPanelProps) {
         type="button"
         aria-label={t("common.close")}
         onClick={onClose}
-        className="fixed inset-0 cursor-default"
-        style={{ background: "rgba(23,19,15,0.35)" }}
+        className="fixed inset-0 cursor-default bg-ink/25 backdrop-blur-sm"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("src.title")}
-        className="panel rise scroll-thin relative max-h-[82vh] w-[min(94vw,520px)] overflow-y-auto p-5"
+        className="panel rise scroll-thin relative max-h-[82vh] w-[min(94vw,540px)] overflow-y-auto p-5 sm:p-6"
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-[17px] leading-tight text-ink">{t("src.title")}</h2>
+            <h2 className="font-display text-[28px] leading-tight text-ink">{t("src.title")}</h2>
             <p className="mt-0.5 text-[11px] text-muted">{t("src.attribution")}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="tip tip-right grid size-9 shrink-0 place-items-center rounded-xl border border-line text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+            className="tip tip-right atlas-icon-button"
             data-tip={t("common.close")}
           >
             <CloseIcon />
           </button>
         </div>
 
-        <div className="mt-5 space-y-5">
+        <div className="mt-5 space-y-3">
           {LAYERS.map((def) => {
             const info = layers?.find((l) => l.id === def.id);
             const kindEntries = Object.entries(info?.kinds ?? {}) as [CameraKind, number][];
             return (
-              <section key={def.id}>
+              <section key={def.id} className="atlas-source">
                 <div className="flex items-center gap-2">
                   {dot(def.color)}
                   <h3 className="text-[13px] font-semibold text-ink">{t(`layer.${def.id}.name`)}</h3>
@@ -190,7 +189,7 @@ export function SourcesPanel({ layers, open, onClose }: SourcesPanelProps) {
             <p className="mt-2 text-[11px] leading-relaxed text-warn">{t("src.staticNote")}</p>
           )}
           <p className="mt-2 text-[10px] text-muted">
-            {t("src.basemap")} · © OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors
+            {t("src.basemap")} · © OpenStreetMap contributors
           </p>
         </div>
       </div>

@@ -58,19 +58,19 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
   }, []);
 
   return (
-    <header className={`panel flex items-center gap-3 px-3 py-2 ${className}`}>
+    <header className={`panel atlas-header flex min-w-0 max-w-full items-center gap-3 px-3 py-2.5 sm:gap-5 sm:px-4 ${className}`}>
       <div className="flex min-w-0 items-center gap-2.5">
         <LogoMark />
         <div className="min-w-0">
-          <h1 className="truncate font-display text-[15px] leading-tight text-ink">{t("app.title")}</h1>
-          <p className="max-w-[42vw] truncate text-[10px] leading-tight text-muted sm:max-w-none">
+          <h1 className="atlas-wordmark truncate font-display text-[17px] leading-tight text-ink sm:text-[23px]">{t("app.title")}</h1>
+          <p className="mt-0.5 max-w-[42vw] truncate text-[10px] leading-tight text-ink-2 sm:max-w-none sm:text-[11px]">
             {t("app.subtitle")}
           </p>
         </div>
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
-        <div className="hidden items-baseline gap-1.5 sm:flex">
+      <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="atlas-clock hidden flex-col gap-1 lg:flex">
           <span className="label text-muted">SGT</span>
           <span className="num text-[13px] font-medium text-ink-2">{clock}</span>
         </div>
@@ -78,11 +78,11 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
         <div
           role="group"
           aria-label={t("lang.switch")}
-          className="relative flex h-8 w-[100px] shrink-0 items-center rounded-full border border-line bg-paper p-0.5"
+          className="relative flex h-10 w-[100px] shrink-0 items-center rounded-full border border-line-strong/50 bg-surface/60 p-0.5"
         >
           <span
             aria-hidden="true"
-            className="absolute top-0.5 bottom-0.5 left-0.5 w-[46px] rounded-full border border-line bg-surface shadow-[0_1px_2px_rgba(23,19,15,0.10)] transition-transform duration-200 ease-out motion-reduce:transition-none"
+            className="absolute top-0.5 bottom-0.5 left-0.5 w-[46px] rounded-full bg-accent transition-transform duration-200 ease-out motion-reduce:transition-none"
             style={{ transform: lang === "zh" ? "translateX(48px)" : "translateX(0)" }}
           />
           {LANGS.map((l) => (
@@ -92,8 +92,8 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
               onClick={() => setLang(l.id)}
               aria-pressed={lang === l.id}
               aria-label={l.id === "en" ? t("lang.en") : t("lang.zh")}
-              className={`relative z-10 h-7 flex-1 rounded-full text-[11px] font-semibold leading-none transition-colors ${
-                lang === l.id ? "text-ink" : "text-muted hover:text-ink-2"
+              className={`relative z-10 h-10 flex-1 rounded-full text-[11px] font-semibold leading-none transition-colors ${
+                lang === l.id ? "text-accent-ink" : "text-ink-2 hover:text-ink"
               }`}
             >
               {l.label}
@@ -105,7 +105,7 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
           type="button"
           onClick={onOpenSources}
           aria-label={t("src.title")}
-          className="tip tip-right grid size-9 place-items-center rounded-xl border border-line text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+          className="tip tip-right atlas-icon-button"
           data-tip={t("src.title")}
         >
           <SourcesIcon />

@@ -18,6 +18,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const apiDir = path.join(root, "src", "app", "api");
 const backupDir = path.join(root, `.api-backup-${process.pid}`);
+const nextDevDir = path.join(root, ".next", "dev");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
 const seed = path.join(root, "src", "data", "cameras-seed.json");
 const baked = path.join(root, "public", "data", "cameras.json");
@@ -53,6 +54,12 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 bakeSnapshot();
 
 try {
+  // `next dev` writes route validators under .next/dev. Because the static build
+  // temporarily removes the API routes, those generated files otherwise retain
+  // imports to files that no longer exist and make TypeScript fail with TS2307.
+  // Preserve .next/cache, which is the reusable build cache documented by Next.
+  fs.rmSync(nextDevDir, { recursive: true, force: true });
+
   if (!fs.existsSync(apiDir)) throw new Error("src/app/api not found; is another build running?");
   fs.cpSync(apiDir, backupDir, { recursive: true });
   fs.rmSync(apiDir, { recursive: true });

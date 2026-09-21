@@ -192,26 +192,40 @@ async function main() {
       /Feed updated|live images/i.test(panelText) && !/temporarily unavailable/i.test(panelText),
       panelText.replace(/\n+/g, " | ").slice(-160),
     );
-    // The still images must be loadable by the browser from whatever host the
-    // active mode uses (LTA presigned S3 or data.gov.sg).
+    // Every still image must be loadable by the browser from the active app
+    // feed (LTA presigned S3 in server mode or data.gov.sg in static mode).
     const imgProbe = await evaluate(`(async () => {
-      const url = ${JSON.stringify("")};
       const source = ${JSON.stringify("https://api.data.gov.sg/v1/transport/traffic-images")};
-      const feed = await fetch(source).then((r) => r.json()).catch(() => null);
-      const first = feed?.items?.[0]?.cameras?.[0]?.image ?? url;
-      if (!first) return 'no-image-url';
-      return await new Promise((resolve) => {
+      const staticMode = ${JSON.stringify(mode === "static")};
+      const feed = await fetch(staticMode ? source : '/api/traffic-images').then((r) => r.json());
+      const cameras = staticMode
+        ? (feed?.items?.[0]?.cameras ?? []).map((c) => ({ id: String(c.camera_id), url: c.image }))
+        : (feed?.cameras ?? []).map((c) => ({ id: String(c.cameraId), url: c.imageUrl }));
+      const results = await Promise.all(cameras.map(({ id, url }) => new Promise((resolve) => {
+        if (!url) return resolve({ id, ok: false, reason: 'missing-url' });
         const img = new Image();
-        img.onload = () => resolve(img.naturalWidth + 'x' + img.naturalHeight);
-        img.onerror = () => resolve('failed');
-        img.src = first;
-        setTimeout(() => resolve('timeout'), 15000);
-      });
+        const timer = setTimeout(() => resolve({ id, ok: false, reason: 'timeout' }), 15000);
+        img.onload = () => {
+          clearTimeout(timer);
+          const ok = img.naturalWidth > 0 && img.naturalHeight > 0;
+          resolve({ id, ok, reason: ok ? '' : 'zero-dimensions' });
+        };
+        img.onerror = () => {
+          clearTimeout(timer);
+          resolve({ id, ok: false, reason: 'load-error' });
+        };
+        img.src = url;
+      })));
+      return {
+        total: results.length,
+        loaded: results.filter((result) => result.ok).length,
+        failures: results.filter((result) => !result.ok).map((result) => result.id + ':' + result.reason),
+      };
     })()`);
     check(
       "official traffic still loads in the browser",
-      /^\d+x\d+$/.test(String(imgProbe)),
-      String(imgProbe),
+      imgProbe.total > 0 && imgProbe.loaded === imgProbe.total,
+      `loaded=${imgProbe.loaded}/${imgProbe.total}; failures=${imgProbe.failures.join(',') || 'none'}`,
     );
 
     // 2. language toggle

@@ -88,13 +88,17 @@ function Switch({ on, color, label, onClick }: { on: boolean; color: string; lab
       aria-checked={on}
       aria-label={label}
       onClick={onClick}
-      className="relative h-6 w-10 shrink-0 self-center rounded-full border transition-colors"
-      style={{ background: on ? color : "var(--line-strong)", borderColor: on ? color : "var(--line-strong)" }}
+      className="relative h-10 w-10 shrink-0 self-center rounded-full"
     >
       <span
-        className="absolute top-[2px] left-[2px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform"
-        style={{ transform: on ? "translateX(16px)" : "none" }}
-      />
+        className="absolute inset-x-0 top-2 h-6 rounded-full border transition-colors"
+        style={{ background: on ? color : "var(--line-strong)", borderColor: on ? color : "var(--line-strong)" }}
+      >
+        <span
+          className="absolute top-[2px] left-[2px] h-[18px] w-[18px] rounded-full bg-surface shadow-sm transition-transform"
+          style={{ transform: on ? "translateX(16px)" : "none" }}
+        />
+      </span>
     </button>
   );
 }
@@ -118,13 +122,13 @@ export function LayerPanel({
 
   if (collapsed) {
     return (
-      <div className={`panel inline-flex items-center gap-2 py-2 pr-2 pl-3 ${className}`}>
+      <div className={`panel atlas-header inline-flex self-start items-center gap-3 py-2 pr-2 pl-4 ${className}`}>
         <Mark />
         <span className="label">{t("panel.title")}</span>
-        <span className="text-[11px] text-[var(--muted)]">{totalPoints || "—"}</span>
+        <span className="num rounded-full bg-surface px-2 py-1 text-[12px] font-semibold text-ink-2">{totalPoints || "—"}</span>
         <button
           type="button"
-          className="tip rounded-md p-1.5 text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+          className="tip atlas-icon-button"
           data-tip={t("panel.expand")}
           aria-label={t("panel.expand")}
           onClick={() => onCollapsedChange(false)}
@@ -139,13 +143,13 @@ export function LayerPanel({
   }
 
   return (
-    <section className={`panel w-[min(92vw,340px)] ${className}`}>
-      <header className="flex items-center gap-2.5 p-4 pb-3">
+    <section className={`panel atlas-layers w-[min(92vw,340px)] ${className}`}>
+      <header className="flex shrink-0 items-center gap-2.5 px-4 pt-3 pb-2">
         <Mark />
         <h2 className="label flex-1">{t("panel.title")}</h2>
         <button
           type="button"
-          className="tip tip-right rounded-md p-1.5 text-[var(--ink-2)] hover:bg-[var(--surface-2)]"
+          className="tip tip-right atlas-icon-button"
           data-tip={t("panel.collapse")}
           aria-label={t("panel.collapse")}
           onClick={() => onCollapsedChange(true)}
@@ -186,7 +190,7 @@ export function LayerPanel({
           ))}
         </ul>
       ) : (
-        <ul className="scroll-thin max-h-[60vh] overflow-y-auto px-4">
+        <ul className="scroll-thin min-h-0 space-y-2 overflow-y-auto px-3">
           {LAYERS.map((def) => {
             const info = layers?.find((l) => l.id === def.id);
             const on = active[def.id];
@@ -195,26 +199,26 @@ export function LayerPanel({
               .filter(([, n]) => n > 0);
             const status = info && info.status !== "ok" ? STATUS_STYLE[info.status] : null;
             return (
-              <li key={def.id} className="border-b border-[var(--line)] py-3 last:border-b-0">
-                <div className="flex gap-3">
-                  <Glyph id={def.id} color={def.color} />
+              <li key={def.id} data-layer={def.id} data-active={on} className="atlas-layer p-3">
+                <div className="flex gap-2.5">
+                  <span className="atlas-layer-glyph"><Glyph id={def.id} color={def.color} /></span>
                   <button
                     type="button"
                     onClick={() => onToggle(def.id)}
                     aria-label={t(on ? "panel.off" : "panel.on")}
-                    className="min-w-0 flex-1 text-left"
+                    className="min-w-0 flex-1 pt-0.5 text-left"
                   >
                     <span className="block text-[13px] font-semibold">{t(`layer.${def.id}.name`)}</span>
                     <span className="mt-0.5 block text-[11px] leading-snug text-[var(--muted)]">
                       {t(`layer.${def.id}.note`)}
                     </span>
-                    <span className="mt-2 flex items-baseline gap-1.5">
-                      <span className={`num text-[22px] leading-none font-semibold ${on ? "" : "text-[var(--muted)]"}`}>
+                    <span className="mt-2 flex flex-wrap items-baseline gap-1.5">
+                      <span className={`num text-[26px] leading-none font-medium tracking-tight ${on ? "" : "text-[var(--muted)]"}`}>
                         {info ? info.count : "—"}
                       </span>
                       <span className="label text-[var(--muted)]">{t(UNIT[def.id])}</span>
                       {Boolean(info?.liveCount) && (
-                        <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--c-live)_12%,transparent)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--c-live)]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface/80 px-1.5 py-1 text-[10px] font-semibold text-[var(--c-live)]">
                           <span className="pulse h-1.5 w-1.5 rounded-full bg-[var(--c-live)]" />
                           {info?.liveCount} {t("common.liveImages")}
                         </span>
@@ -258,7 +262,7 @@ export function LayerPanel({
       )}
 
       {layers && (
-        <footer className="space-y-1 border-t border-[var(--line)] px-4 py-3 text-[10px] text-[var(--muted)]">
+        <footer className="atlas-layer-footer shrink-0 space-y-1 border-t border-line px-4 py-3 text-[10px] leading-relaxed text-muted">
           {!anyOn && (
             <p className="mb-2 rounded-md bg-[color-mix(in_srgb,var(--warn)_10%,transparent)] px-2 py-1.5 text-[11px] text-[var(--warn)]">
               {t("panel.allOff")}

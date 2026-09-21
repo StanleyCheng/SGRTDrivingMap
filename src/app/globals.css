@@ -1,32 +1,37 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Design tokens — "City Instrument Panel"
-   Warm paper canvas, ink typography, signal-red accent.
+   Design tokens — "Pastel Civic Atlas"
+   Mint framing, warm paper, grounded ink and quiet map signals.
    ============================================================ */
 :root {
-  --paper: #f3f0ea;
-  --surface: #ffffff;
-  --surface-2: #faf8f4;
-  --ink: #17130f;
-  --ink-2: #4b453d;
-  --muted: #857e74;
-  --line: #dcd6cc;
-  --line-strong: #c2bab0;
-  --accent: #c0392b;
+  --paper: #f4f6f0;
+  --surface: #fffef9;
+  --surface-2: #edf3ed;
+  --ink: #203b36;
+  --ink-2: #405b52;
+  --muted: #63736b;
+  --line: #d8e2d8;
+  --line-strong: #a8bcb0;
+  --accent: #286453;
   --accent-ink: #ffffff;
+  --mint: #dceee4;
+  --sky: #e0edf4;
+  --peach: #f7e1d4;
+  --butter: #f3edce;
 
-  --c-redlight: #d92d20;
-  --c-speed: #6d28d9;
-  --c-snapshot: #0e7490;
-  --c-live: #0e7490;
+  --c-redlight: #aa5648;
+  --c-speed: #947029;
+  --c-snapshot: #3e718b;
+  --c-live: #3e718b;
 
   --ok: #15803d;
   --warn: #b45309;
   --err: #b42318;
 
-  --shadow-panel: 0 1px 2px rgba(23, 19, 15, 0.06), 0 12px 32px -12px rgba(23, 19, 15, 0.22);
-  --radius: 14px;
+  --shadow-panel: 0 2px 4px -2px rgb(32 59 54 / 8%), 0 14px 40px -16px rgb(32 59 54 / 24%), inset 0 1px 0 rgb(255 255 255 / 80%);
+  --radius: 20px;
+  --radius-control: 12px;
 }
 
 @theme inline {
@@ -40,6 +45,10 @@
   --color-line-strong: var(--line-strong);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-mint: var(--mint);
+  --color-sky: var(--sky);
+  --color-peach: var(--peach);
+  --color-butter: var(--butter);
   --color-redlight: var(--c-redlight);
   --color-speed: var(--c-speed);
   --color-snapshot: var(--c-snapshot);
@@ -70,11 +79,11 @@ body {
   overscroll-behavior: none;
 }
 
-/* Micro-label: uppercase, tracked, tiny — the instrument-panel voice */
+/* Small atlas captions stay quiet and legible beside both writing systems. */
 .label {
   font-size: 10px;
   line-height: 1.2;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   font-weight: 600;
 }
@@ -88,12 +97,108 @@ body {
 }
 
 .panel {
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(14px) saturate(1.4);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-panel);
   border-radius: var(--radius);
 }
+
+.atlas-header {
+  background: color-mix(in srgb, var(--mint) 94%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--mint));
+}
+
+.atlas-wordmark {
+  letter-spacing: -0.025em;
+}
+
+.atlas-clock {
+  border-left: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  padding-left: 14px;
+}
+
+.atlas-icon-button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink-2);
+  transition: background 180ms, border-color 180ms;
+}
+
+.atlas-icon-button:hover {
+  background: var(--mint);
+  border-color: var(--line-strong);
+}
+
+.atlas-layers {
+  display: flex;
+  flex-direction: column;
+  align-self: flex-start;
+}
+
+.atlas-layer {
+  --layer-tint: var(--peach);
+  border: 1px solid color-mix(in srgb, var(--c-redlight) 14%, transparent);
+  border-radius: calc(var(--radius) - 6px);
+  background: color-mix(in srgb, var(--layer-tint) 68%, var(--surface));
+  transition: background 180ms, border-color 180ms;
+}
+
+.atlas-layer[data-layer="speed"] {
+  --layer-tint: var(--butter);
+  border-color: color-mix(in srgb, var(--c-speed) 16%, transparent);
+}
+
+.atlas-layer[data-layer="snapshot"] {
+  --layer-tint: var(--sky);
+  border-color: color-mix(in srgb, var(--c-snapshot) 15%, transparent);
+}
+
+.atlas-layer[data-active="false"] {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.atlas-layer:hover {
+  background: var(--layer-tint);
+}
+
+.atlas-layer-glyph {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.atlas-layer-footer {
+  margin-top: 12px;
+  background: var(--surface-2);
+  border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
+}
+
+.atlas-detail {
+  border-top: 5px solid var(--detail-color, var(--accent));
+}
+
+.atlas-source {
+  border: 1px solid var(--line);
+  border-radius: calc(var(--radius) - 6px);
+  background: var(--surface);
+  padding: 14px;
+}
+
+.atlas-source:nth-child(1) { background: color-mix(in srgb, var(--peach) 36%, var(--surface)); }
+.atlas-source:nth-child(2) { background: color-mix(in srgb, var(--butter) 40%, var(--surface)); }
+.atlas-source:nth-child(3) { background: color-mix(in srgb, var(--sky) 40%, var(--surface)); }
 
 .hairline {
   border-color: var(--line);
@@ -178,16 +283,33 @@ button,
   border-bottom-color: var(--surface) !important;
 }
 .maplibregl-ctrl-group {
-  border-radius: 10px !important;
+  background: var(--surface) !important;
+  border-radius: var(--radius-control) !important;
   box-shadow: var(--shadow-panel) !important;
   border: 1px solid var(--line);
   overflow: hidden;
+}
+.maplibregl-ctrl-group button {
+  width: 40px !important;
+  height: 40px !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: var(--mint) !important;
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--line) !important;
 }
 .maplibregl-ctrl-attrib.maplibregl-compact {
   background: rgba(255, 255, 255, 0.82) !important;
 }
 .maplibregl-ctrl-attrib a {
   color: var(--ink-2) !important;
+}
+
+@media (max-width: 639px) {
+  .maplibregl-ctrl-attrib.maplibregl-compact {
+    margin: 0 4px 76px 0 !important;
+  }
 }
 
 @keyframes pulse-ring {
@@ -239,6 +361,12 @@ button,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
   .pulse,
   .skeleton::after,
   .rise {
