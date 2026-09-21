@@ -1,5 +1,12 @@
 import type { CameraKind, LayerId } from "./types";
 
+/**
+ * The static GitHub Pages build has no server, so it reads LTA's live image feed
+ * from the keyless data.gov.sg mirror instead of the DataMall API. Attribute the
+ * source the running build actually uses.
+ */
+const STATIC_MODE = process.env.NEXT_PUBLIC_STATIC_MODE === "1";
+
 export interface LayerDef {
   id: LayerId;
   /** CSS var holding the marker colour. */
@@ -93,9 +100,13 @@ export const LAYERS: LayerDef[] = [
       {
         agency: "Land Transport Authority",
         agencyZh: "陸路交通管理局",
-        dataset: "Traffic Images (live stills, DataMall)",
-        datasetZh: "交通影像（實時畫面，DataMall）",
-        url: "https://datamall.lta.gov.sg/content/datamall/en/dynamic-data.html",
+        dataset: STATIC_MODE
+          ? "Traffic Images (live stills, data.gov.sg)"
+          : "Traffic Images (live stills, DataMall)",
+        datasetZh: STATIC_MODE ? "交通影像（實時畫面，data.gov.sg）" : "交通影像（實時畫面，DataMall）",
+        url: STATIC_MODE
+          ? "https://data.gov.sg/datasets/d_6cdb6b405b25aaaacbaf7689bcc6fae0/view"
+          : "https://datamall.lta.gov.sg/content/datamall/en/dynamic-data.html",
       },
     ],
   },

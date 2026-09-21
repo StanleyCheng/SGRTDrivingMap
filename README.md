@@ -4,9 +4,19 @@ A bilingual (English / 繁體中文) map of every official camera and detection 
 Singapore Government publishes as open data — red-light cameras, speed-enforcement cameras
 and LTA traffic snapshot cameras — plus the still-streaming live traffic images.
 
-- **Live app:** `npm run dev` → http://localhost:3000
+- **Live site (GitHub Pages):** https://stanleycheng.github.io/SGRTDrivingMap/
+- **Repository:** https://github.com/StanleyCheng/SGRTDrivingMap
 - **Build report & decisions:** [`doc/2026-09-21-design.md`](doc/2026-09-21-design.md)
 - **UI design system:** [`DESIGN.md`](DESIGN.md)
+
+## Two ways to run it
+
+| Mode | Command | Data path |
+|---|---|---|
+| Self-hosted (Node server) | `npm run dev` / `npm run build && npm start` | own API routes; live images from LTA **DataMall** with the key held server-side |
+| Static (GitHub Pages) | `npm run build:static` → `out/` | baked camera snapshot + keyless **data.gov.sg** mirror of the same live feed |
+
+The static export is what CI deploys; it needs no server, no API key and no database.
 
 ## Data sources (all official, no mock data)
 
@@ -39,11 +49,28 @@ The DataMall key is used **server-side only** — it is never sent to the browse
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | development server |
-| `npm run build` / `npm start` | production build / serve |
-| `npm run lint` | eslint (Next core-web-vitals + TypeScript) |
-| `npx tsc --noEmit` | type check |
+| `npm run dev` | development server (http://localhost:3000) |
+| `npm run build` / `npm start` | production build / serve (server mode) |
+| `npm run build:static` | static export for GitHub Pages → `out/` |
+| `npm run verify` | lint + type check (what CI runs before deploying) |
+| `npm run lint` / `npm run typecheck` | individually |
 | `node scripts/smoke.mjs [url]` | end-to-end browser checks via Chrome DevTools Protocol (screenshots → `.cache/screens/`) |
+
+### Deployment
+
+`.github/workflows/deploy.yml` runs `npm ci` → `npm run verify` → `npm run build:static` and
+publishes `out/` to GitHub Pages on every push to `main`. The static build bakes the camera
+datasets into `public/data/cameras.json` from `src/data/cameras-seed.json`, temporarily moves
+`src/app/api` aside (route handlers are incompatible with `output: 'export'`) and sets the
+`/SGRTDrivingMap` base path — see `scripts/build-static.mjs` and `next.config.ts`.
+
+To refresh the deployed camera data, re-run a real fetch and commit the new snapshot:
+
+```bash
+curl -s "http://localhost:3000/api/cameras?refresh=1" > /dev/null   # warm .cache
+cp .cache/cameras.json src/data/cameras-seed.json
+git commit -am "Refresh camera data snapshot" && git push
+```
 
 `scripts/smoke.mjs` drives a real Chrome/Edge (set `CHROME_PATH` if none is found). Run it
 against `npm run dev` for the full suite (15 checks, including marker clicks); against a

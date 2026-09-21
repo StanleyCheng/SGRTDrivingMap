@@ -341,6 +341,13 @@ async function main() {
       "sources panel lists official datasets",
       srcText.includes("data.gov.sg") || srcText.includes("Singapore Police Force"),
     );
+    if (mode === "static") {
+      check(
+        "static build attributes the live feed to data.gov.sg (not DataMall)",
+        !/DataMall/.test(srcText),
+        srcText.replace(/\n+/g, " | ").slice(0, 120),
+      );
+    }
     const shot2 = await send("Page.captureScreenshot", { format: "png" });
     writeFileSync(path.join(OUT, "desktop-sources.png"), Buffer.from(shot2.data, "base64"));
     await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
