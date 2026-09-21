@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens — "City Instrument Panel"
+   Warm paper canvas, ink typography, signal-red accent.
+   ============================================================ */
+:root {
+  --paper: #f3f0ea;
+  --surface: #ffffff;
+  --surface-2: #faf8f4;
+  --ink: #17130f;
+  --ink-2: #4b453d;
+  --muted: #857e74;
+  --line: #dcd6cc;
+  --line-strong: #c2bab0;
+  --accent: #c0392b;
+  --accent-ink: #ffffff;
+
+  --c-redlight: #d92d20;
+  --c-speed: #6d28d9;
+  --c-snapshot: #0e7490;
+  --c-live: #0e7490;
+
+  --ok: #15803d;
+  --warn: #b45309;
+  --err: #b42318;
+
+  --shadow-panel: 0 1px 2px rgba(23, 19, 15, 0.06), 0 12px 32px -12px rgba(23, 19, 15, 0.22);
+  --radius: 14px;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-redlight: var(--c-redlight);
+  --color-speed: var(--c-speed);
+  --color-snapshot: var(--c-snapshot);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-err: var(--err);
+
+  --font-sans: var(--font-archivo), "Noto Sans TC", "PingFang TC", "Microsoft JhengHei",
+    "Heiti TC", system-ui, sans-serif;
+  --font-display: var(--font-instrument), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-archivo), ui-monospace, "SFMono-Regular", monospace;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  overscroll-behavior: none;
+}
+
+/* Micro-label: uppercase, tracked, tiny — the instrument-panel voice */
+.label {
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+:lang(zh) .label {
+  letter-spacing: 0.16em;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.panel {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius);
+}
+
+.hairline {
+  border-color: var(--line);
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Tooltips (CSS only) */
+.tip {
+  position: relative;
+}
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%) translateY(3px);
+  background: var(--ink);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 5px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+  z-index: 60;
+}
+.tip:hover::after,
+.tip:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.tip-right::after {
+  left: auto;
+  right: 0;
+  transform: translateY(3px);
+}
+.tip-right:hover::after,
+.tip-right:focus-visible::after {
+  transform: translateY(0);
+}
+
+/* Scrollbars */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+}
+
+/* MapLibre chrome */
+.maplibregl-map {
+  font-family: var(--font-sans);
+}
+.maplibregl-popup-content {
+  padding: 0 !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-panel) !important;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.maplibregl-popup-tip {
+  border-top-color: var(--surface) !important;
+  border-bottom-color: var(--surface) !important;
+}
+.maplibregl-ctrl-group {
+  border-radius: 10px !important;
+  box-shadow: var(--shadow-panel) !important;
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: rgba(255, 255, 255, 0.82) !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: var(--ink-2) !important;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-live) 55%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.pulse {
+  animation: pulse-ring 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--line) 55%, transparent);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse,
+  .skeleton::after,
+  .rise {
+    animation: none;
+  }
+}

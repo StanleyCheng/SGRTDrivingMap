@@ -1,0 +1,45 @@
+import type { Metadata, Viewport } from "next";
+import { Archivo, Instrument_Serif } from "next/font/google";
+import { I18nProvider } from "@/components/i18n-provider";
+import "./globals.css";
+
+const archivo = Archivo({
+  subsets: ["latin"],
+  variable: "--font-archivo",
+  display: "swap",
+});
+
+const instrument = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-instrument",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "Singapore Real-Time Driving Info · 新加坡實時交通資訊",
+  description:
+    "Live map of Singapore red-light cameras, speed enforcement cameras and LTA traffic snapshot cameras — official government open data, bilingual EN/繁中.",
+  applicationName: "Singapore Real-Time Driving Info",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#f3f0ea",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      data-mode={process.env.NEXT_PUBLIC_STATIC_MODE === "1" ? "static" : "server"}
+      className={`${archivo.variable} ${instrument.variable} h-full antialiased`}
+    >
+      <body className="min-h-full">
+        <I18nProvider>{children}</I18nProvider>
+      </body>
+    </html>
+  );
+}

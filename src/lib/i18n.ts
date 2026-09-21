@@ -1,0 +1,237 @@
+import type { Lang } from "./types";
+
+const en = {
+  "app.title": "Singapore Real-Time Driving Info",
+  "app.short": "SG Driving Info",
+  "app.subtitle": "Official red-light, speed & traffic cameras on one map",
+  "app.metaDescription":
+    "Live map of Singapore red-light cameras, speed enforcement cameras and LTA traffic snapshot cameras, from official government open data.",
+
+  "lang.en": "Eng",
+  "lang.zh": "繁中",
+  "lang.switch": "Switch language",
+
+  "panel.title": "Data layers",
+  "panel.collapse": "Collapse panel",
+  "panel.expand": "Open layers",
+  "panel.close": "Close",
+  "panel.summary": "{layers} layers · {points} detection points",
+  "panel.allOff": "All layers are hidden. Turn one on to see points on the map.",
+  "panel.on": "Show layer",
+  "panel.off": "Hide layer",
+
+  "layer.redlight.name": "Red-light cameras",
+  "layer.redlight.note": "Junctions enforced for red-running (Traffic Police)",
+  "layer.speed.name": "Speed enforcement cameras",
+  "layer.speed.note": "Fixed, digital, laser and mobile speed units (Traffic Police)",
+  "layer.snapshot.name": "Traffic snapshot cameras",
+  "layer.snapshot.note": "LTA road cameras — official still images where still streamed",
+
+  "kind.redlight": "Red-light camera",
+  "kind.fixed_speed": "Fixed speed camera",
+  "kind.expressway_speed": "Expressway speed camera (KPE/MCE)",
+  "kind.laser_speed": "Police speed laser camera",
+  "kind.mobile_speed": "Mobile speed camera",
+  "kind.snapshot": "Traffic snapshot camera",
+
+  "common.inUse": "in use",
+  "common.live": "Live",
+  "common.liveImages": "live images",
+  "common.locations": "locations",
+  "common.cameras": "cameras",
+  "common.total": "Total",
+  "common.close": "Close",
+  "common.of": "of",
+
+  "status.loading": "Loading",
+  "status.ok": "Loaded",
+  "status.error": "Unavailable",
+  "status.stale": "Cached copy",
+  "status.partial": "Partly available",
+  "status.empty": "No data",
+  "status.updated": "Updated",
+  "status.sourceRev": "Source revision",
+  "status.cachedNote":
+    "Live source could not be reached. Showing the last successfully loaded copy.",
+  "status.retry": "Retry",
+  "status.refreshing": "Refreshing",
+
+  "detail.title": "Location details",
+  "detail.road": "Road",
+  "detail.direction": "Direction",
+  "detail.desc": "Details",
+  "detail.coords": "Coordinates",
+  "detail.ref": "Record ID",
+  "detail.source": "Source",
+  "detail.snapshot": "Traffic image",
+  "detail.captured": "Captured",
+  "detail.openFull": "Open full image",
+  "detail.noImage": "This camera has no live image feed right now.",
+  "detail.zoom": "Zoom to",
+  "detail.empty": "Tap any marker on the map to see its details.",
+
+  "traffic.title": "Live traffic images",
+  "traffic.feed": "Feed updated",
+  "traffic.age": "{n}s ago",
+  "traffic.loadingTitle": "Loading traffic images…",
+  "traffic.error": "Traffic images are temporarily unavailable.",
+  "traffic.auto": "Auto-refresh every 60s",
+  "traffic.refreshNow": "Refresh now",
+  "traffic.notStreaming":
+    "{total} LTA road cameras mapped · {live} currently streaming live images.",
+
+  "legend.title": "Legend",
+  "legend.cluster": "Grouped markers",
+
+  "src.title": "Data sources",
+  "src.attribution": "Official open data — Republic of Singapore",
+  "src.disclaimer":
+    "Informational only. Camera locations and images are published by the Singapore Government; always obey traffic signals and road signs.",
+  "src.basemap": "Basemap",
+  "src.staticNote":
+    "Static GitHub Pages build: camera layers are baked from the official datasets at build time; live traffic images are fetched straight from data.gov.sg every 60 seconds.",
+  "src.gapNote":
+    "Average-speed camera zones (Tanah Merah Coast Road) are published by the Traffic Police only as a web page — not as an open dataset or API — so they are not plotted here:",
+
+  "err.upstream": "Upstream data source unavailable",
+  "err.loadFailed": "Couldn't load this layer",
+  "err.map": "The map component failed to load.",
+  "err.offline": "No network connection to the data source.",
+
+  "a11y.map": "Map of Singapore showing camera locations",
+  "a11y.controls": "Map controls",
+  "a11y.zoomIn": "Zoom in",
+  "a11y.zoomOut": "Zoom out",
+  "a11y.reset": "Reset view",
+  "a11y.locate": "My location",
+}
+
+const zh: Record<keyof typeof en, string> = {
+  "app.title": "新加坡實時交通資訊",
+  "app.short": "新加坡交通資訊",
+  "app.subtitle": "紅燈、超速執法及交通攝影機，盡在一圖",
+  "app.metaDescription":
+    "以官方公開數據製作的互動地圖：新加坡紅燈攝影機、超速執法攝影機及陸交局交通快照攝影機位置。",
+
+  "lang.en": "English",
+  "lang.zh": "繁中",
+  "lang.switch": "切換語言",
+
+  "panel.title": "資料圖層",
+  "panel.collapse": "收起面板",
+  "panel.expand": "開啟圖層",
+  "panel.close": "關閉",
+  "panel.summary": "{layers} 個圖層 · {points} 個偵測點",
+  "panel.allOff": "所有圖層已隱藏，開啟其中一個即可在地圖上顯示。",
+  "panel.on": "顯示圖層",
+  "panel.off": "隱藏圖層",
+
+  "layer.redlight.name": "紅燈攝影機",
+  "layer.redlight.note": "設有闖紅燈執法的路口（交通警察）",
+  "layer.speed.name": "超速執法攝影機",
+  "layer.speed.note": "固定、數碼、雷射及流動測速裝置（交通警察）",
+  "layer.snapshot.name": "交通快照攝影機",
+  "layer.snapshot.note": "陸交局道路攝影機，仍在提供實時影像者會顯示畫面",
+
+  "kind.redlight": "紅燈攝影機",
+  "kind.fixed_speed": "固定式超速攝影機",
+  "kind.expressway_speed": "快速公路測速攝影機（KPE/MCE）",
+  "kind.laser_speed": "警方雷射測速攝影機",
+  "kind.mobile_speed": "流動測速攝影機",
+  "kind.snapshot": "交通快照攝影機",
+
+  "common.inUse": "使用中",
+  "common.live": "實時",
+  "common.liveImages": "實時影像",
+  "common.locations": "個地點",
+  "common.cameras": "部攝影機",
+  "common.total": "總數",
+  "common.close": "關閉",
+  "common.of": "/",
+
+  "status.loading": "載入中",
+  "status.ok": "已載入",
+  "status.error": "無法載入",
+  "status.stale": "暫存資料",
+  "status.partial": "部分可用",
+  "status.empty": "暫無資料",
+  "status.updated": "更新於",
+  "status.sourceRev": "資料版本",
+  "status.cachedNote": "未能連接實時資料來源，現顯示最後成功載入的內容。",
+  "status.retry": "重試",
+  "status.refreshing": "更新中",
+
+  "detail.title": "地點詳情",
+  "detail.road": "道路",
+  "detail.direction": "方向",
+  "detail.desc": "說明",
+  "detail.coords": "座標",
+  "detail.ref": "紀錄編號",
+  "detail.source": "資料來源",
+  "detail.snapshot": "交通影像",
+  "detail.captured": "拍攝時間",
+  "detail.openFull": "開啟原圖",
+  "detail.noImage": "此攝影機目前沒有實時影像。",
+  "detail.zoom": "放大至此",
+  "detail.empty": "點擊地圖上任何標記以查看詳情。",
+
+  "traffic.title": "實時交通影像",
+  "traffic.feed": "影像更新",
+  "traffic.age": "{n} 秒前",
+  "traffic.loadingTitle": "正在載入交通影像…",
+  "traffic.error": "交通影像暫時無法提供。",
+  "traffic.auto": "每 60 秒自動更新",
+  "traffic.refreshNow": "立即更新",
+  "traffic.notStreaming": "已標示 {total} 部陸交局道路攝影機，其中 {live} 部提供實時影像。",
+
+  "legend.title": "圖例",
+  "legend.cluster": "聚合標記",
+
+  "src.title": "資料來源",
+  "src.attribution": "新加坡共和國官方公開數據",
+  "src.disclaimer":
+    "僅供參考。攝影機位置及影像由新加坡政府發布，駕駛時請時刻遵守交通燈號及標誌。",
+  "src.basemap": "底圖",
+  "src.staticNote":
+    "此為 GitHub Pages 靜態版本：攝影機圖層於建置時由官方數據集產生；實時交通影像每 60 秒直接從 data.gov.sg 取得。",
+  "src.gapNote":
+    "平均車速攝影機區域（丹那美拉海岸路）只在交通警察網頁公布，未提供開放數據或 API，因此未顯示於此地圖：",
+
+  "err.upstream": "上游資料來源暫時無法連線",
+  "err.loadFailed": "此圖層載入失敗",
+  "err.map": "地圖元件載入失敗。",
+  "err.offline": "無法連接資料來源網絡。",
+
+  "a11y.map": "顯示攝影機位置的新加坡地圖",
+  "a11y.controls": "地圖控制",
+  "a11y.zoomIn": "放大",
+  "a11y.zoomOut": "縮小",
+  "a11y.reset": "重設視圖",
+  "a11y.locate": "我的位置",
+}
+
+export type StringKey = keyof typeof en;
+
+const dict: Record<Lang, Record<StringKey, string>> = { en, zh };
+
+export function translate(
+  lang: Lang,
+  key: StringKey,
+  vars?: Record<string, string | number>,
+): string {
+  let s = dict[lang][key] ?? dict.en[key] ?? key;
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) s = s.replaceAll(`{${k}}`, String(v));
+  }
+  return s;
+}
+
+export const LANGS: { id: Lang; label: string }[] = [
+  { id: "en", label: "Eng" },
+  { id: "zh", label: "繁中" },
+];
+
+/** Follows the source language for place names: datasets publish English road names. */
+export function roadName(lang: Lang, road: string) {
+  return road;
+}

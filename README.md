@@ -1,0 +1,63 @@
+# Singapore Real-Time Driving Info · 新加坡實時交通資訊
+
+A bilingual (English / 繁體中文) map of every official camera and detection point the
+Singapore Government publishes as open data — red-light cameras, speed-enforcement cameras
+and LTA traffic snapshot cameras — plus the still-streaming live traffic images.
+
+- **Live app:** `npm run dev` → http://localhost:3000
+- **Build report & decisions:** [`doc/2026-09-21-design.md`](doc/2026-09-21-design.md)
+- **UI design system:** [`DESIGN.md`](DESIGN.md)
+
+## Data sources (all official, no mock data)
+
+| Layer | Source |
+|---|---|
+| Red-light cameras (240) | data.gov.sg — SPF Red Light Cameras `d_5f140c79…`, cross-checked with DTRLS `d_0b7ddc09…` |
+| Speed enforcement cameras (93) | data.gov.sg — SPF Fixed Speed `d_5fdeb9dc…`, Police Speed Laser `d_763b6039…`, Mobile Speed `d_e411f01a…`, consolidated list `d_983804de…` |
+| Traffic snapshot cameras (262) | data.gov.sg — LTA Road Camera `d_147f4906…` + LTA DataMall `Traffic-Imagesv2` (8 live stills) |
+| Basemap | OpenFreeMap Positron (keyless), automatic OpenStreetMap raster fallback |
+
+## Setup
+
+```bash
+npm install
+cp .env.example .env.local     # then paste your LTA DataMall Account Key
+npm run dev
+```
+
+`.env.local`
+
+```
+DATAMALL_ACCOUNT_KEY=your_datamall_account_key
+# optional: any MapLibre style URL ("" forces the OSM raster fallback)
+NEXT_PUBLIC_MAP_STYLE=https://tiles.openfreemap.org/styles/positron
+```
+
+The DataMall key is used **server-side only** — it is never sent to the browser.
+
+## Scripts
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | development server |
+| `npm run build` / `npm start` | production build / serve |
+| `npm run lint` | eslint (Next core-web-vitals + TypeScript) |
+| `npx tsc --noEmit` | type check |
+| `node scripts/smoke.mjs [url]` | end-to-end browser checks via Chrome DevTools Protocol (screenshots → `.cache/screens/`) |
+
+`scripts/smoke.mjs` drives a real Chrome/Edge (set `CHROME_PATH` if none is found). Run it
+against `npm run dev` for the full suite (15 checks, including marker clicks); against a
+production server the marker checks are skipped because the `window.__map` debug handle is
+dev-only.
+
+## Data pipeline notes
+
+- Static camera layers are fetched from data.gov.sg on the server, cached for 6 hours
+  (memory → `.cache/cameras.json` → bundled `src/data/cameras-seed.json`), and refreshed in
+  the background. `GET /api/cameras?refresh=1` forces a re-download; a cold refresh takes
+  ~60–70 s because data.gov.sg allows about one anonymous request every 10 s.
+- Live traffic images come from LTA DataMall (`Traffic-Imagesv2`), cached 45 s and polled by
+  the client every 60 s. If LTA is unreachable the last good payload is served with
+  `status: "stale"` and a visible notice.
+- Reset the cache with `rm -rf .cache`; re-seed the bundled snapshot with
+  `cp .cache/cameras.json src/data/cameras-seed.json`.
