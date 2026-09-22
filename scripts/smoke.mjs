@@ -289,8 +289,12 @@ async function main() {
     // 2b. the agreed default view. The nine driver overlays need the server-hosted
     //     app, so the static build lists only the three camera layers (all on, or the
     //     map would open empty) while the server build lists twelve with just the top
-    //     two switched on.
+    //     two switched on. The road feeds are slow on a cold start and the live group
+    //     renders skeletons until the first payload lands, so wait for the panel to
+    //     settle instead of sampling it mid-flight.
     const staticMode = mode === "static";
+    const expectedRows = staticMode ? 3 : 12;
+    await waitFor(`document.querySelectorAll('.atlas-layer').length === ${expectedRows}`, 90000);
     const layerRows = await evaluate("document.querySelectorAll('.atlas-layer').length");
     check(
       staticMode
@@ -344,6 +348,40 @@ async function main() {
       `(() => { const r = document.querySelector('[data-testid=map]').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; })()`,
     );
     check("map canvas fills the viewport", box.w > 800 && box.h > 500, `${box.w}x${box.h}`);
+
+    // 3b. the top bar retracts to the app icon alone, then restores. The collapsed
+    //     bar is a button rather than a header, so it is found by its class.
+    const barWidth = await evaluate(
+      `Math.round(document.querySelector('header.atlas-header').getBoundingClientRect().width)`,
+    );
+    await evaluate(`document.querySelector('header.atlas-header').click()`);
+    await sleep(700);
+    const collapsedBar = await evaluate(`(() => {
+      const el = document.querySelector('.atlas-header');
+      if (!el) return null;
+      return {
+        width: Math.round(el.getBoundingClientRect().width),
+        expanded: el.getAttribute('aria-expanded'),
+        hasWordmark: Boolean(el.querySelector('h1')),
+      };
+    })()`);
+    await evaluate(`document.querySelector('.atlas-header').click()`);
+    await sleep(700);
+    const restoredBar = await evaluate(`(() => {
+      const el = document.querySelector('header.atlas-header');
+      return el ? { width: Math.round(el.getBoundingClientRect().width), expanded: el.getAttribute('aria-expanded') } : null;
+    })()`);
+    check(
+      "top bar retracts to the icon only and restores",
+      Boolean(collapsedBar && restoredBar) &&
+        collapsedBar.width < 120 &&
+        collapsedBar.width < barWidth * 0.4 &&
+        collapsedBar.expanded === "false" &&
+        !collapsedBar.hasWordmark &&
+        restoredBar.width === barWidth &&
+        restoredBar.expanded === "true",
+      `width ${barWidth} -> ${collapsedBar?.width} (wordmark ${collapsedBar?.hasWordmark ? "shown" : "hidden"}) -> ${restoredBar?.width}`,
+    );
 
     const hasHook = await evaluate("Boolean(window.__map)");
     if (!hasHook) {
@@ -428,11 +466,9 @@ async function main() {
       return true;
     })()`);
     await sleep(5000);
-    const evConnectors = await evaluate(`(() => {
-      const sel = document.querySelector('#filter-ev-plug');
-      if (!sel) return [];
-      return [...sel.options].map((o) => o.value).filter(Boolean);
-    })()`);
+    // The connector options come from the layer's own features, so they only exist
+    // once the EV payload has landed.
+    await waitFor(`(document.querySelector('#filter-ev-plug')?.options.length ?? 0) > 1`, 60000);
     await evaluate(`(async () => {
       const j = await fetch('/api/road-conditions?layers=ev').then((r) => r.json());
       const f = (j.features || []).find((x) => x.geometry);
@@ -453,12 +489,12 @@ async function main() {
       return { count: feats.length, connectors: ranked.map(([k]) => k) };
     })()`);
     const chosen = evBefore.connectors[0] ?? null;
-    await evaluate(`(() => {
+    const applied = await evaluate(`(() => {
       const sel = document.querySelector('#filter-ev-plug');
-      if (!sel || !${JSON.stringify(chosen)}) return false;
+      if (!sel || !${JSON.stringify(chosen)}) return null;
       sel.value = ${JSON.stringify(chosen)};
       sel.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
+      return sel.value;
     })()`);
     await sleep(3000);
     const evAfter = await evaluate(
@@ -472,7 +508,7 @@ async function main() {
       evBefore.count > 0 &&
         evAfter.count > 0 &&
         chosen !== null &&
-        evConnectors.includes(chosen) &&
+        applied === chosen &&
         evAfter.connectors.length === 1 &&
         evAfter.connectors[0] === chosen,
       `rendered ${evBefore.count} -> ${evAfter.count}; connectors now [${evAfter.connectors.join(
@@ -592,7 +628,12 @@ async function main() {
     close();
     chrome.kill();
     await sleep(1200);
-    rmSync(profile, { recursive: true, force: true });
+    try {
+      rmSync(profile, { recursive: true, force: true });
+    } catch {
+      // Windows can hold a lock on the profile for a moment after exit; the
+      // directory is in tmpdir and the next run uses a fresh one.
+    }
   }
 }
 
