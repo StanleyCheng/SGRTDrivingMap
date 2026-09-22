@@ -72,18 +72,27 @@ particular street), with the limitation stated in the panel.
 
 ### Static GitHub Pages behaviour
 
-Every live driver overlay is unavailable in the static GitHub Pages export. Static hosting has no
-server-side credential proxy, so it never ships the private DataMall key or attempts a credentialed
-browser request; the camera map and keyless live traffic-image mirror still work.
+Static hosting has no server-side credential proxy, so it never ships the private DataMall key or
+attempts a credentialed browser request. All nine driver layers are still listed — on desktop and on
+the phone rail — but marked *Available in the server-hosted app* and shown without counts, rather
+than being hidden. Because the camera layers are no longer on by default either, a static build opens
+on an empty map until a layer is switched on; the keyless live traffic-image mirror still works.
 
 ### Phone and desktop controls
 
-- **Phone:** the layer control is a rail of coloured icons docked at the bottom of the window. Each
-  icon carries a tooltip and its live count; tapping one pops that layer's own panel above the rail
-  instead of showing all twelve rows at once. The rail retracts while a detail card is open.
+- **Phone:** the layer control is a rail of coloured icons docked at the bottom of the window, listing
+  all nine driver layers and the three camera layers. Hovering (or focusing) an icon shows a shared
+  tooltip bubble above the rail with the layer name and what it does — one bubble, because a bubble
+  anchored to a single icon in a two-row rail is either clipped or hidden behind the next row.
+  Tapping an icon **toggles** a layer that has nothing to configure; a layer with settings (incident
+  route, parking vehicle type, EV connector/power/availability) opens its own panel instead, and a
+  failing feed opens one holding the reason and Retry. The rail retracts while a detail card is open.
 - **Desktop:** one floating card, grouped into live road conditions, the route-aware extras, and
-  camera locations; it collapses to a single chip.
-- **Top bar:** click it to retract to just the app icon, click again to restore.
+  camera locations; it collapses to a single chip. Every driver row is numbered (#1–#9) in the agreed
+  priority order and names the official feed behind it.
+- **Default view:** driver layers 1 (live congestion) and 2 (accidents & breakdowns) are on; layers
+  3–9 and all three camera layers are off, in every build.
+- **Top bar:** click it to retract to the app icon, which keeps its exact position, click again to restore.
 
 ## Data sources (all official, no mock data)
 

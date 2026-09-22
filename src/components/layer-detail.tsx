@@ -389,6 +389,13 @@ export function RoadLayerInfo({
         {status && <span style={{ color: status.color }}>· {t(status.key)}</span>}
       </span>
 
+      {info && info.sources.length > 0 && (
+        <span className="mt-1.5 block text-[9px] leading-relaxed text-muted">
+          <span className="label mr-1 text-[9px]">{t("road.detail.source")}</span>
+          {info.sources.map((source) => source.name).join(" · ")}
+        </span>
+      )}
+
       {id === "hazards" && Boolean(info?.count) && (
         <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--c-hazard)_12%,transparent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--c-hazard)]">
           <span className="pulse h-1.5 w-1.5 rounded-full bg-[var(--c-hazard)]" />

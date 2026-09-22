@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { StringKey } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
-import { LAYERS } from "@/lib/layers";
+import { LAYERS, ROAD_LAYER_ORDER } from "@/lib/layers";
 import type {
   LayerFilters,
   LayerId,
@@ -67,6 +67,8 @@ interface LayerRowProps {
   status: { key: StringKey; color: string } | null;
   onToggle: () => void;
   onRetry: () => void;
+  /** Panel priority for the nine driver layers (#1…); camera layers have none. */
+  priority?: number;
   /** Headline count + badges for camera layers. */
   children?: React.ReactNode;
   detail?: React.ReactNode;
@@ -82,6 +84,7 @@ function LayerRow({
   status,
   onToggle,
   onRetry,
+  priority,
   children,
   detail,
 }: LayerRowProps) {
@@ -92,6 +95,7 @@ function LayerRow({
       <div className="flex gap-2.5">
         <span className="atlas-layer-glyph" style={{ color }}>
           <AnyLayerGlyph id={id} color={color} />
+          {priority != null && <span className="atlas-layer-index num">{priority}</span>}
         </span>
         <button
           type="button"
@@ -187,23 +191,27 @@ function MobileLayerRail({
 }) {
   const { t } = useI18n();
   const [open, setOpen] = useState<LayerId | RoadLayerId | null>(null);
+  const [hint, setHint] = useState<LayerId | RoadLayerId | null>(null);
   const features = roadConditions?.features ?? [];
 
-  const roadEntries: RailEntry[] = roadAvailable
-    ? [...LIVE_ROAD_LAYERS, ...ROUTE_ROAD_LAYERS].map((def) => {
-        const info = roadConditions?.layers.find((layer) => layer.id === def.id);
-        return {
-          id: def.id,
-          color: def.color,
-          name: t(`road.layer.${def.id}.name`),
-          note: t(`road.layer.${def.id}.note`),
-          on: roadActive[def.id],
-          count: info ? info.mappedCount : null,
-          info,
-          disabled: !roadLoading && info?.status === "error" && (info?.count ?? 0) === 0,
-        };
-      })
-    : [];
+  // The nine driver overlays are always listed, including in the static build,
+  // where they are shown as unavailable with the reason. Hiding them made the
+  // control look like it was missing icons.
+  const roadEntries: RailEntry[] = [...LIVE_ROAD_LAYERS, ...ROUTE_ROAD_LAYERS].map((def) => {
+    const info = roadAvailable ? roadConditions?.layers.find((layer) => layer.id === def.id) : undefined;
+    return {
+      id: def.id,
+      color: def.color,
+      name: t(`road.layer.${def.id}.name`),
+      note: roadAvailable ? t(`road.layer.${def.id}.note`) : t("road.panel.serverOnlyShort"),
+      // The default view (layers 1 and 2 on) is what the switch shows, even where
+      // the feed behind it cannot be reached in this build.
+      on: roadActive[def.id],
+      count: info ? info.mappedCount : null,
+      info,
+      disabled: roadAvailable && !roadLoading && info?.status === "error" && (info?.count ?? 0) === 0,
+    };
+  });
 
   const cameraEntries: RailEntry[] = LAYERS.map((def) => {
     const info = layers?.find((layer) => layer.id === def.id);
@@ -220,6 +228,7 @@ function MobileLayerRail({
 
   const entries = [...roadEntries, ...cameraEntries];
   const openEntry = entries.find((entry) => entry.id === open) ?? null;
+  const hintEntry = entries.find((entry) => entry.id === hint) ?? null;
   const isRoad = (id: LayerId | RoadLayerId) => ROAD_LAYER_IDS.includes(id as RoadLayerId);
   const switchLayer = (id: LayerId | RoadLayerId) => {
     if (isRoad(id)) onRoadToggle(id as RoadLayerId);
@@ -309,6 +318,11 @@ function MobileLayerRail({
 
       <div className="atlas-rail-bar">
         <span className="label shrink-0 px-1 text-muted">{t("panel.title")}</span>
+        {hintEntry && (
+          <p className="atlas-rail-hint" role="tooltip">
+            {`${hintEntry.name} — ${hintEntry.note}`}
+          </p>
+        )}
         <ul className="atlas-rail" aria-label={t("panel.title")}>
           {entries.map((entry) => (
             <li key={entry.id}>
@@ -332,7 +346,11 @@ function MobileLayerRail({
                   setOpen(null);
                   switchLayer(entry.id);
                 }}
-                className="tip atlas-rail-icon"
+                onMouseEnter={() => setHint(entry.id)}
+                onMouseLeave={() => setHint((current) => (current === entry.id ? null : current))}
+                onFocus={() => setHint(entry.id)}
+                onBlur={() => setHint((current) => (current === entry.id ? null : current))}
+                className="atlas-rail-icon"
                 style={layerStyle(entry.color)}
               >
                 <span className="atlas-rail-glyph">
@@ -449,6 +467,10 @@ export function LayerPanel({
           <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
             {t("status.refreshing")}
           </span>
+        ) : roadLoading && !roadConditions ? (
+          <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
+            {t("status.loading")}
+          </span>
         ) : roadStatus ? (
           <span
             className="rounded-full px-2 py-0.5 text-[9px] font-semibold"
@@ -482,73 +504,59 @@ export function LayerPanel({
       )}
 
       <div className="scroll-thin min-h-0 overflow-y-auto">
-        {roadAvailable && (
-          <>
-            <p className="label px-4 pb-1">{t("road.panel.title")}</p>
-            {roadLoading && !roadConditions ? (
-              <ul className="space-y-2 px-3">
-                {[0, 1, 2, 3].map((i) => (
-                  <li key={i} className="skeleton h-16 rounded-[var(--radius-control)]" />
-                ))}
-              </ul>
-            ) : (
-              <ul className="space-y-2 px-3">
-                {LIVE_ROAD_LAYERS.map((def) => (
-                  <RoadLayerRow
-                    key={def.id}
-                    id={def.id}
-                    color={def.color}
-                    info={roadConditions?.layers.find((layer) => layer.id === def.id)}
-                    features={features}
-                    active={roadActive[def.id]}
-                    roadLoading={roadLoading}
-                    incidentRoute={incidentRoute}
-                    onIncidentRouteChange={onIncidentRouteChange}
-                    onRoadToggle={onRoadToggle}
-                    onRoadRetry={onRoadRetry}
-                    filters={layerFilters}
-                    onFilterChange={changeFilters}
-                  />
-                ))}
-              </ul>
-            )}
+        {/* Always listed, in every build: the rows are the control surface, and
+            replacing them with skeletons hid the layers entirely during the first
+            (slow) road feed. Unavailable builds say so on the row instead. */}
+        <p className="label px-4 pb-1">{t("road.panel.title")}</p>
+        <ul className="space-y-2 px-3">
+          {LIVE_ROAD_LAYERS.map((def) => (
+            <RoadLayerRow
+              key={def.id}
+              id={def.id}
+              color={def.color}
+              info={roadAvailable ? roadConditions?.layers.find((layer) => layer.id === def.id) : undefined}
+              features={features}
+              active={roadActive[def.id]}
+              roadAvailable={roadAvailable}
+              roadLoading={roadLoading}
+              incidentRoute={incidentRoute}
+              onIncidentRouteChange={onIncidentRouteChange}
+              onRoadToggle={onRoadToggle}
+              onRoadRetry={onRoadRetry}
+              filters={layerFilters}
+              onFilterChange={changeFilters}
+            />
+          ))}
+        </ul>
 
-            <p className="label mt-4 px-4 pb-1">{t("road.panel.mobilityGroup")}</p>
-            <ul className="space-y-2 px-3">
-              {ROUTE_ROAD_LAYERS.map((def) => (
-                <RoadLayerRow
-                  key={def.id}
-                  id={def.id}
-                  color={def.color}
-                  info={roadConditions?.layers.find((layer) => layer.id === def.id)}
-                  features={features}
-                  active={roadActive[def.id]}
-                  roadLoading={roadLoading}
-                  incidentRoute={incidentRoute}
-                  onIncidentRouteChange={onIncidentRouteChange}
-                  onRoadToggle={onRoadToggle}
-                  onRoadRetry={onRoadRetry}
-                  filters={layerFilters}
-                  onFilterChange={changeFilters}
-                />
-              ))}
-            </ul>
-          </>
-        )}
+        <p className="label mt-4 px-4 pb-1">{t("road.panel.mobilityGroup")}</p>
+        <ul className="space-y-2 px-3">
+          {ROUTE_ROAD_LAYERS.map((def) => (
+            <RoadLayerRow
+              key={def.id}
+              id={def.id}
+              color={def.color}
+              info={roadAvailable ? roadConditions?.layers.find((layer) => layer.id === def.id) : undefined}
+              features={features}
+              active={roadActive[def.id]}
+              roadAvailable={roadAvailable}
+              roadLoading={roadLoading}
+              incidentRoute={incidentRoute}
+              onIncidentRouteChange={onIncidentRouteChange}
+              onRoadToggle={onRoadToggle}
+              onRoadRetry={onRoadRetry}
+              filters={layerFilters}
+              onFilterChange={changeFilters}
+            />
+          ))}
+        </ul>
 
         <p className="label mt-4 px-4 pb-1">{t("road.panel.cameraGroup")}</p>
-        {loading && !layers ? (
-          <ul className="space-y-2 px-3">
-            {[0, 1, 2].map((i) => (
-              <li key={i} className="skeleton h-16 rounded-[var(--radius-control)]" />
-            ))}
-          </ul>
-        ) : (
-          <ul className="space-y-2 px-3">
-            {LAYERS.map((def) => {
-              const info = layers?.find((l) => l.id === def.id);
-              const status = info && info.status !== "ok" ? STATUS_STYLE[info.status] : null;
-              const kinds = def.kinds
+        <ul className="space-y-2 px-3">
+          {LAYERS.map((def) => {
+            const info = layers?.find((l) => l.id === def.id);
+            const status = info && info.status !== "ok" ? STATUS_STYLE[info.status] : null;
+            const kinds = def.kinds
                 .map((k) => [k, info?.kinds?.[k] ?? 0] as const)
                 .filter(([, n]) => n > 0);
               return (
@@ -584,8 +592,7 @@ export function LayerPanel({
                 </LayerRow>
               );
             })}
-          </ul>
-        )}
+        </ul>
 
         {roadAvailable && (
           <div className="mt-2 space-y-1 px-4 py-3 text-[9px] leading-relaxed text-muted">
@@ -647,12 +654,15 @@ function RoadLayerRow({
   onRoadRetry,
   filters,
   onFilterChange,
+  roadAvailable,
 }: {
   id: RoadLayerId;
   color: string;
   info: RoadConditionLayerInfo | undefined;
   features: RoadConditionFeature[];
   active: boolean;
+  /** False in the static build, where these feeds cannot be reached at all. */
+  roadAvailable: boolean;
   roadLoading: boolean;
   incidentRoute: string | null;
   onIncidentRouteChange: (route: string | null) => void;
@@ -663,17 +673,20 @@ function RoadLayerRow({
 }) {
   const { t } = useI18n();
   const status: { key: StringKey; color: string } | null =
-    info && info.status !== "ok" ? STATUS_STYLE[info.status as Exclude<SourceStatus, "ok">] : null;
-  const disabled = !roadLoading && info?.status === "error" && (info?.count ?? 0) === 0;
+    roadAvailable && info && info.status !== "ok"
+      ? STATUS_STYLE[info.status as Exclude<SourceStatus, "ok">]
+      : null;
+  const disabled = roadAvailable && !roadLoading && info?.status === "error" && (info?.count ?? 0) === 0;
   return (
     <LayerRow
       id={id}
       color={color}
       name={t(`road.layer.${id}.name`)}
-      note={t(`road.layer.${id}.note`)}
+      note={roadAvailable ? t(`road.layer.${id}.note`) : t("road.panel.serverOnlyShort")}
       active={active}
       disabled={disabled}
       status={status}
+      priority={ROAD_LAYER_ORDER.indexOf(id) + 1}
       onToggle={() => onRoadToggle(id)}
       onRetry={onRoadRetry}
       detail={

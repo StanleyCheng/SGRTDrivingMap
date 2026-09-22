@@ -269,24 +269,30 @@ body {
 }
 
 /*
- * The rail tooltip is the layer's description, because a tap on a layer with
- * nothing to configure switches it directly instead of opening a panel — so the
- * bubble has to wrap rather than run off the edge of a phone screen.
+ * The rail sits at the bottom of the window and wraps onto two rows, so a bubble
+ * anchored to a single icon either opens off-screen or hides behind the next row.
+ * One shared bubble above the rail is always fully visible and can wrap the layer
+ * description, which is what replaced the old per-icon card.
  */
-.atlas-rail-icon.tip::after {
-  bottom: auto;
-  top: calc(100% + 8px);
-  left: 0;
-  white-space: normal;
-  width: max-content;
-  max-width: min(66vw, 230px);
-  text-align: left;
-  line-height: 1.35;
-  transform: translateY(-3px);
+.atlas-rail-bar {
+  position: relative;
 }
-.atlas-rail-icon.tip:hover::after,
-.atlas-rail-icon.tip:focus-visible::after {
-  transform: translateY(0);
+
+.atlas-rail-hint {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 6px);
+  z-index: 6;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--ink);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #fff;
+  box-shadow: 0 8px 20px -12px rgb(23 19 15 / 65%);
+  pointer-events: none;
 }
 
 .atlas-rail-icon[data-active="true"] {
@@ -475,6 +481,7 @@ body {
 }
 
 .atlas-layer-glyph {
+  position: relative;
   display: grid;
   width: 32px;
   height: 32px;
@@ -482,6 +489,23 @@ body {
   place-items: center;
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+/* Priority badge, so the panel order matches the agreed layer list. */
+.atlas-layer-index {
+  position: absolute;
+  top: -4px;
+  left: -5px;
+  min-width: 15px;
+  padding: 0 3px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  color: var(--ink-2);
 }
 
 .atlas-layer-footer {

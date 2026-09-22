@@ -59,12 +59,14 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
 - Desktop: map fills the viewport; mint header top-left, layer panel under it, detail card
   top-right, MapLibre controls bottom-right, freshness chip bottom-centre.
 - Phone: header pinned to the top, the layer control is a **rail of coloured icons docked at the
-  bottom of the window**. Each rail icon carries `aria-label`, a `.tip` tooltip (name plus the
-  layer's description) and its live count. A tap **toggles** a layer that has nothing to configure
-  — no card, and no switch inside a card; a layer with settings (incident route, parking vehicle
-  type, EV connector/power/availability) opens its own popup (`role="dialog"`) instead, and a
-  failing feed opens one holding the reason and Retry. The rail retracts while a detail card is
-  open, and never lists all twelve rows as a wall of text.
+  bottom of the window**, listing all twelve layers in every build. A layer the running build cannot
+  reach is still listed, and its tooltip says why, rather than disappearing. Hovering or focusing an
+  icon shows **one shared tooltip bubble above the rail** (name plus description) — a bubble anchored
+  to a single icon in a two-row rail is either clipped by the window edge or hidden behind the next
+  row. A tap **toggles** a layer with nothing to configure — no card, and no switch inside a card; a
+  layer with settings (incident route, parking vehicle type, EV connector/power/availability) opens
+  its own popup (`role="dialog"`) instead, and a failing feed opens one holding the reason and Retry.
+  The rail retracts while a detail card is open, and never lists the rows as a wall of text.
 - The top bar is retractable: clicking it collapses the whole header down to the app icon, which
   keeps **exactly** its expanded position (same left inset and glyph), and clicking again restores
   it. The bar itself carries no tooltip — it sits against the window edge, where a bubble would be
@@ -83,7 +85,14 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
   assistive technology. Metadata can wrap without pushing a switch out of the card.
 - The nine driver layers are grouped **live road conditions** (1–4) then **route, parking &
   safety** (5–9); camera locations follow last. Every row keeps its own glyph, so a shared hue
-  family is never the only way to tell two layers apart.
+  family is never the only way to tell two layers apart. Driver rows carry their priority
+  number (#1–#9) and name the official feed behind them, so the panel matches the agreed layer
+  list without the reader having to count.
+- The list is a control surface, so it is never replaced by a loading state: rows render
+  immediately with `—` counts while the first (slow) payload is in flight, and the status chip in
+  the panel header carries the progress. Swapping rows for skeletons hid the layers outright.
+- **Default view:** driver layers 1–2 on, everything else off — including the three camera layers,
+  which never carry the default view in any build.
 - Summaries stay compact and inside the panel: parking and EV aggregate into `.atlas-mini-card`
   chips, ERP into charge rows (`.atlas-erp-row`), expressway into corridor cards and an EMAS list.
   Only zoom-gated geometry (school/silver zones from zoom 14, ERP spans from zoom 14) and the

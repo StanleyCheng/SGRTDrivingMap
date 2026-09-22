@@ -287,34 +287,29 @@ async function main() {
       /data layers/i.test(await evaluate("document.body.innerText")),
     );
 
-    // 2b. the agreed default view. The nine driver overlays need the server-hosted
-    //     app, so the static build lists only the three camera layers (all on, or the
-    //     map would open empty) while the server build lists twelve with just the top
-    //     two switched on. The road feeds are slow on a cold start and the live group
-    //     renders skeletons until the first payload lands, so wait for the panel to
-    //     settle instead of sampling it mid-flight.
+    // 2b. the agreed default view, identical in every build: all nine driver layers
+    //     plus the three camera layers are listed, and only driver layers 1 and 2 are
+    //     on. The static build cannot reach the credentialed feeds, so its driver rows
+    //     say so, but they are still present and controllable.
     const staticMode = mode === "static";
-    const expectedRows = staticMode ? 3 : 12;
-    await waitFor(`document.querySelectorAll('.atlas-layer').length === ${expectedRows}`, 90000);
+    await waitFor(`document.querySelectorAll('.atlas-layer').length === 12`, 90000);
     const layerRows = await evaluate("document.querySelectorAll('.atlas-layer').length");
     check(
-      staticMode
-        ? "static build lists the three camera layers"
-        : "nine driver layers and three camera layers are listed",
-      staticMode ? layerRows === 3 : layerRows === 12,
-      `rows=${layerRows}`,
+      "nine driver layers and three camera layers are listed",
+      layerRows === 12,
+      `rows=${layerRows}${staticMode ? " (static build)" : ""}`,
     );
-    const defaults = await evaluate(
-      `(() => [...document.querySelectorAll('[role=switch]')].map(x => x.getAttribute('aria-checked')).join(','))()`,
-    );
+    const layerState = await evaluate(`(() => {
+      return [...document.querySelectorAll('.atlas-layer')].map((el) => ({
+        layer: el.getAttribute('data-layer'),
+        on: el.querySelector('[role=switch]')?.getAttribute('aria-checked') === 'true',
+      }));
+    })()`);
+    const layersOn = layerState.filter((row) => row.on).map((row) => row.layer);
     check(
-      staticMode
-        ? "static build defaults its camera layers on"
-        : "only the top two layers are on by default",
-      staticMode
-        ? defaults === "true,true,true"
-        : defaults === "true,true,false,false,false,false,false,false,false,false,false,false",
-      defaults,
+      "only the top two layers are on by default (rest off)",
+      JSON.stringify(layersOn) === JSON.stringify(["traffic-speed", "incidents"]),
+      "on: " + (layersOn.join(", ") || "none"),
     );
 
     // 3. layer toggle hides/shows a layer
@@ -568,21 +563,52 @@ async function main() {
       mobileText.slice(0, 60).replace(/\n/g, " / "),
     );
 
-    // The phone control is a coloured icon rail docked at the bottom: tapping an
-    // icon must pop that layer's own content above it. The static build's rail
-    // carries the camera layers only, so the count differs by mode and the first
-    // icon is used rather than a driver-layer id that static mode does not have.
+    // The phone control is a coloured icon rail docked at the bottom. All twelve
+    // layers are listed in every build, each with a hover tooltip; tapping a layer
+    // with nothing to configure toggles it, and one with settings opens its panel.
     const railIcons = await evaluate(
       `(() => { const rail = document.querySelector('.atlas-rail'); return rail ? rail.children.length : 0; })()`,
     );
-    check(
-      staticMode ? "phone rail lists the camera layers" : "phone layer rail shows an icon per layer",
-      staticMode ? railIcons === 3 : railIcons >= 9,
-      `icons=${railIcons}`,
+    const railLayers = await evaluate(
+      `(() => [...document.querySelectorAll('.atlas-rail-icon')].map((b) => b.getAttribute('data-layer')))()`,
     );
+    check(
+      "phone rail lists all nine driver layers and three camera layers",
+      railIcons === 12 && ["traffic-speed", "incidents", "zones", "expressway", "snapshot"].every((id) => railLayers.includes(id)),
+      `icons=${railIcons}: ${railLayers.join(",")}`,
+    );
+
+    // Every icon must describe itself on hover: the rail shows one shared bubble
+    // above the bar, since a per-icon bubble is clipped or hidden by the next row.
+    const missingTips = railLayers.filter((id) => id === null).length;
+    check("every rail icon declares its tooltip text", missingTips === 0, `${railIcons} icons`);
+    const railHover = await evaluate(`(() => {
+      const b = document.querySelector('.atlas-rail-icon[data-layer="zones"]');
+      const r = b.getBoundingClientRect();
+      return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+    })()`);
+    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: railHover.x, y: railHover.y, button: "none" });
+    await sleep(600);
+    const railHint = await evaluate(`(() => {
+      const el = document.querySelector('.atlas-rail-hint');
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return {
+        text: el.innerText,
+        onScreen: r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth,
+      };
+    })()`);
+    check(
+      "hovering a rail icon shows its tooltip fully on screen",
+      Boolean(railHint && railHint.onScreen && railHint.text.includes("—")),
+      railHint ? `${railHint.text} (onScreen=${railHint.onScreen})` : "no tooltip",
+    );
+    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5, button: "none" });
+    await sleep(300);
+
     // A tap on a layer with nothing to configure switches it: no card, and no
     // switch inside a card. The tooltip carries the description instead.
-    const railSimple = staticMode ? "redlight" : "hazards";
+    const railSimple = "hazards";
     const railBefore = await evaluate(
       `document.querySelector('.atlas-rail-icon[data-layer="${railSimple}"]')?.getAttribute('aria-pressed')`,
     );
@@ -605,14 +631,11 @@ async function main() {
     );
     check(
       "rail tooltip describes the layer",
-      Boolean(railAfter.tip && railAfter.tip.length > 12 && railAfter.tip.includes("—")),
+      Boolean(railAfter.tip && railAfter.tip.length > 12),
       railAfter.tip ?? "no tooltip",
     );
 
     // Layers that do have settings still open their own panel.
-    if (staticMode) {
-      console.log("SKIP  rail option-panel check — the static build's rail has no layer with settings");
-    } else {
       await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="parking"]')?.click()`);
       await sleep(800);
       const popupBefore = await evaluate(`(() => {
@@ -638,7 +661,6 @@ async function main() {
         ),
         `${popupBefore?.text.replace(/\n/g, " / ") ?? "no popup"} -> select options=${popupAfter.options}`,
       );
-    }
     const shotRail = await send("Page.captureScreenshot", { format: "png" });
     writeFileSync(path.join(OUT, "mobile-rail.png"), Buffer.from(shotRail.data, "base64"));
     const shot3 = await send("Page.captureScreenshot", { format: "png" });

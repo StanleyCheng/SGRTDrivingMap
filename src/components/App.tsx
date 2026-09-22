@@ -51,9 +51,10 @@ const ROAD_DEFAULTS: Record<RoadLayerId, boolean> = {
 // The four live road layers need the DataMall key, so a static build has none of
 // them. Defaulting every camera layer off as well would open on an empty map,
 // so in static mode the camera layers carry the default view instead.
-const ALL_ON: Record<LayerId, boolean> = STATIC_MODE
-  ? { redlight: true, speed: true, snapshot: true }
-  : { redlight: false, speed: false, snapshot: false };
+// Camera layers never carry the default view, in any build. The agreed default is
+// driver layers 1 and 2 (live congestion, accidents & breakdowns) on and every
+// other layer — including these three camera layers — off.
+const ALL_ON: Record<LayerId, boolean> = { redlight: false, speed: false, snapshot: false };
 const TRAFFIC_POLL_MS = 60_000;
 const ROAD_POLL_MS = 60_000;
 
