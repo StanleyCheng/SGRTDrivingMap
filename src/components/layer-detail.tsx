@@ -64,7 +64,7 @@ function FilterSelect({
         id={id}
         value={value ?? ""}
         onChange={(event) => onChange(event.target.value || null)}
-        className="h-9 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-[11px] text-ink"
+        className="h-10 w-full rounded-[var(--radius-control)] border border-line bg-surface px-2 text-[11px] text-ink"
       >
         {options.map((option) => (
           <option key={option.value} value={option.value}>
@@ -86,7 +86,7 @@ function Toggle({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="mt-2 flex min-h-9 items-center gap-2 text-[11px] text-ink-2">
+    <label className="mt-2 flex min-h-10 items-center gap-2 text-[11px] text-ink-2">
       <input
         type="checkbox"
         checked={checked}
@@ -410,7 +410,7 @@ export function RoadLayerInfo({
         </span>
       )}
 
-      {id === "parking" && active && (
+      {id === "parking" && (
         <>
           <FilterSelect
             id={`filter-${id}`}
@@ -424,13 +424,13 @@ export function RoadLayerInfo({
               { value: "Y", label: t(LOT_TYPE_KEYS.Y) },
             ]}
           />
-          <ParkingSummary features={own} />
+          {active && <ParkingSummary features={own} />}
         </>
       )}
 
       {id === "erp" && active && <ErpSummary features={own} />}
 
-      {id === "ev" && active && (
+      {id === "ev" && (
         <>
           <FilterSelect
             id="filter-ev-plug"

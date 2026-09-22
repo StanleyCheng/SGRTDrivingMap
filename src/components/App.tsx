@@ -120,44 +120,65 @@ export default function App() {
     [roadActive],
   );
 
-  const loadRoads = useCallback(async (options: { refresh?: boolean; signal?: AbortSignal } = {}) => {
+  // Toggling refetches with the new layer set. Serialise that, and drop a reply that
+  // is no longer the newest: an older payload (from the poll or a retry) landing last
+  // would otherwise overwrite the features of the layer just switched on, leaving an
+  // icon that reads "on" above an empty map until the next poll.
+  const roadsBusy = useRef(false);
+  const roadsQueued = useRef<RoadLayerId[] | null>(null);
+  const roadsRequestId = useRef(0);
+
+  const loadRoads = useCallback(async () => {
+    if (roadsBusy.current) {
+      roadsQueued.current = activeRoadLayers;
+      return;
+    }
+    roadsBusy.current = true;
     try {
-      const next = await loadRoadConditions({ ...options, layers: activeRoadLayers });
-      setRoadConditions((previous) => {
-        if (next.status !== "error" || next.features.length > 0 || !previous?.features.length) {
-          return next;
-        }
-        const message = next.error ?? "Live road conditions are temporarily unavailable";
-        return {
-          ...previous,
-          status: "stale",
-          fromCache: true,
-          error: message,
-          layers: previous.layers.map((layer) => ({
-            ...layer,
+      let wanted = activeRoadLayers;
+      for (;;) {
+        roadsQueued.current = null;
+        const requestId = ++roadsRequestId.current;
+        const next = await loadRoadConditions({ layers: wanted });
+        // A newer request has already been issued; this reply is stale.
+        if (requestId !== roadsRequestId.current) break;
+        setRoadConditions((previous) => {
+          if (next.status !== "error" || next.features.length > 0 || !previous?.features.length) {
+            return next;
+          }
+          const message = next.error ?? "Live road conditions are temporarily unavailable";
+          return {
+            ...previous,
             status: "stale",
+            fromCache: true,
             error: message,
-          })),
-        };
-      });
-      setRoadError(next.status === "error" ? (next.error ?? null) : null);
+            layers: previous.layers.map((layer) => ({
+              ...layer,
+              status: "stale",
+              error: message,
+            })),
+          };
+        });
+        setRoadError(next.status === "error" ? (next.error ?? null) : null);
+        // A layer was switched while that request was in flight: fetch the set the
+        // user is looking at now instead of leaving the map a layer behind.
+        const queued = roadsQueued.current;
+        if (!queued) break;
+        wanted = queued;
+      }
     } catch (error) {
       if ((error as Error).name !== "AbortError") setRoadError((error as Error).message);
     } finally {
+      roadsBusy.current = false;
       setRoadLoading(false);
     }
   }, [activeRoadLayers]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    const initialTimer = window.setTimeout(
-      () => void loadRoads({ signal: controller.signal }),
-      0,
-    );
+    const initialTimer = window.setTimeout(() => void loadRoads(), 0);
     // A static build reads one baked snapshot, so there is nothing to poll.
     const timer = STATIC_MODE ? null : setInterval(() => void loadRoads(), ROAD_POLL_MS);
     return () => {
-      controller.abort();
       clearTimeout(initialTimer);
       if (timer) clearInterval(timer);
     };
@@ -170,7 +191,9 @@ export default function App() {
     initialised.current = true;
     const mq = window.matchMedia("(max-width: 640px)");
     setMobile(mq.matches);
-    setCollapsed(mq.matches);
+    // The rail opens visible everywhere and is retracted on demand; starting it
+    // collapsed hid the whole control behind a chip.
+    setCollapsed(false);
     const onChange = (e: MediaQueryListEvent) => setMobile(e.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
@@ -312,9 +335,10 @@ export default function App() {
         <AppHeader onOpenSources={() => setSourcesOpen(true)} className="pointer-events-auto" />
       </div>
 
-      {/* layer control — bottom sheet on mobile, floating card on desktop */}
+      {/* layer control — docked bottom-centre on both platforms; it retracts while a
+          detail card is open, because the card can grow to the bottom of the window */}
       <div
-        className={`absolute z-30 flex transition-transform duration-300 ease-out ${showDetail && mobile ? "translate-y-[110%]" : "translate-y-0"} inset-x-0 bottom-0 justify-center p-2 sm:inset-x-auto sm:bottom-4 sm:left-4 sm:top-[104px] sm:justify-start sm:p-0`}
+        className={`absolute z-30 flex transition-transform duration-300 ease-out ${showDetail ? "translate-y-[110%]" : "translate-y-0"} inset-x-0 bottom-0 justify-center p-2 sm:bottom-4 sm:p-0`}
       >
         <LayerPanel
           layers={visibleCameras?.layers ?? null}

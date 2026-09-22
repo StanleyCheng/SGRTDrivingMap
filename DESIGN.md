@@ -56,8 +56,10 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
 
 ## Layout rules
 
-- Desktop: map fills the viewport; mint header top-left, layer panel under it, detail card
-  top-right, MapLibre controls bottom-right, freshness chip bottom-centre.
+- Desktop: map fills the viewport; mint header top-left, detail card top-right, MapLibre
+  controls bottom-right, and the **layer rail docked bottom-centre**. The dock reserves a
+  right-hand gutter (`calc(100vw - 150px)` at its widest) so a 12-icon rail wraps instead of
+  painting over the zoom/geolocate controls, and it retracts while a detail card is open.
 - Phone: header pinned to the top, the layer control is a **rail of coloured icons docked at the
   bottom of the window**, listing all twelve layers in every build. A layer the running build cannot
   reach is still listed, and its tooltip says why, rather than disappearing. Hovering or focusing an
@@ -65,8 +67,13 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
   to a single icon in a two-row rail is either clipped by the window edge or hidden behind the next
   row. A tap **toggles** a layer with nothing to configure — no card, and no switch inside a card; a
   layer with settings (incident route, parking vehicle type, EV connector/power/availability) opens
-  its own popup (`role="dialog"`) instead, and a failing feed opens one holding the reason and Retry.
-  The rail retracts while a detail card is open, and never lists the rows as a wall of text.
+  those settings alongside the switch it just made, and a failing feed opens a popup holding the
+  reason and Retry — but the popup never contains a switch, because the icon is the switch. A second
+  click on that icon closes its panel.
+  The rail retracts while a detail card is open (both platforms), and never lists the rows as a wall
+  of text. Its one shared tooltip floats above the panel, points at the hovered tile with a caret,
+  and is exposed to assistive tech through `aria-describedby`; the settings panel is not open at the
+  same time, so the two never overlap.
 - The top bar is retractable: clicking it collapses the whole header down to the app icon, which
   keeps **exactly** its expanded position (same left inset and glyph), and clicking again restores
   it. The bar itself carries no tooltip — it sits against the window edge, where a bubble would be

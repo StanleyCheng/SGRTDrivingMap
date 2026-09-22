@@ -84,9 +84,9 @@ on an empty map until a layer is switched on; the keyless live traffic-image mir
   all nine driver layers and the three camera layers. Hovering (or focusing) an icon shows a shared
   tooltip bubble above the rail with the layer name and what it does — one bubble, because a bubble
   anchored to a single icon in a two-row rail is either clipped or hidden behind the next row.
-  Tapping an icon **toggles** a layer that has nothing to configure; a layer with settings (incident
-  route, parking vehicle type, EV connector/power/availability) opens its own panel instead, and a
-  failing feed opens one holding the reason and Retry. The rail retracts while a detail card is open.
+  Tapping an icon **toggles** that layer — always, including a layer with settings, which opens its
+  filters alongside the toggle rather than behind a second switch. A failing feed opens a popup with
+  the reason and Retry. The rail retracts while a detail card is open.
 - **Desktop:** one floating card, grouped into live road conditions, the route-aware extras, and
   camera locations; it collapses to a single chip. Every driver row is numbered (#1–#9) in the agreed
   priority order and names the official feed behind it.

@@ -162,42 +162,6 @@ export function RoadGlyph({ id, size = 20 }: { id: RoadLayerId; size?: number })
   );
 }
 
-export function Switch({
-  on,
-  color,
-  label,
-  onClick,
-  disabled = false,
-}: {
-  on: boolean;
-  color: string;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={onClick}
-      disabled={disabled}
-      className="relative h-10 w-10 shrink-0 self-center rounded-full disabled:cursor-not-allowed disabled:opacity-45"
-    >
-      <span
-        className="absolute inset-x-0 top-2 h-6 rounded-full border transition-colors"
-        style={{ background: on ? color : "var(--line-strong)", borderColor: on ? color : "var(--line-strong)" }}
-      >
-        <span
-          className="absolute top-[2px] left-[2px] h-[18px] w-[18px] rounded-full bg-surface shadow-sm transition-transform"
-          style={{ transform: on ? "translateX(16px)" : "none" }}
-        />
-      </span>
-    </button>
-  );
-}
-
 /** A layer glyph for either registry, so callers do not branch on the id space. */
 export function AnyLayerGlyph({
   id,

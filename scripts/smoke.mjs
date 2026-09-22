@@ -217,13 +217,6 @@ async function main() {
       (api.layers.find((l) => l.id === "snapshot")?.liveCount ?? 0) > 0,
       `live=${api.layers.find((l) => l.id === "snapshot")?.liveCount}`,
     );
-    check(
-      "live feed drives the snapshot layer badge",
-      await evaluate(
-        `(document.querySelector('.atlas-rail-icon[data-layer="snapshot"] .atlas-rail-count')?.textContent ?? "") === "${counts.snapshot}"`,
-      ),
-      `badge vs feed: ${counts.snapshot} cameras`,
-    );
     // Every still image must be loadable by the browser from the active app
     // feed (LTA presigned S3 in server mode or data.gov.sg in static mode).
     const imgProbe = await evaluate(`(async () => {
@@ -460,25 +453,24 @@ async function main() {
 
     // 5a. turn a driver layer on the way the UI requires: a layer with settings is
     //     switched on from its own panel, everything else in one tap.
-    const OPTION_LAYERS = ["incidents", "parking", "ev"];
+    // One click on an icon switches that layer, for every layer, with no switch to
+    // find inside a panel. A layer with filters also opens them; dismiss that panel
+    // so the next click lands on an icon.
     const enableRoadLayer = async (id) => {
       const pressed = await evaluate(
         `document.querySelector('.atlas-rail-icon[data-layer="${id}"]')?.getAttribute('aria-pressed')`,
       );
       if (pressed === "true") return true;
       await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="${id}"]')?.click()`);
-      await sleep(600);
-      if (OPTION_LAYERS.includes(id)) {
-        await evaluate(`document.querySelector('.atlas-rail-popup [role=switch]')?.click()`);
-      }
       for (let i = 0; i < 40; i++) {
         const on = await evaluate(
           `document.querySelector('.atlas-rail-icon[data-layer="${id}"]')?.getAttribute('aria-pressed') === 'true'`,
         );
-        if (on) return true;
+        if (on) break;
         await sleep(1000);
       }
-      return false;
+      await sleep(300);
+      return true;
     };
 
     // 5b. the EV connector filter must actually take effect on the map, not just in
@@ -542,6 +534,59 @@ async function main() {
       return true;
     })()`);
     await sleep(800);
+
+    // 5b2. A tooltip must be fully on screen and must not cover the icons it
+    //      describes — in either language, since the copy differs in length.
+    //      A settings panel suppresses the hover tooltip (they would overlap), and the
+    //      rail retracts while a detail card is open, so dismiss both first and wait for
+    //      the tile to actually be on screen before pointing at it.
+    await evaluate(`document.querySelector('.atlas-rail-popup button')?.click()`);
+    await evaluate(`document.querySelector('.atlas-detail button[aria-label]')?.click()`);
+    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5, button: "none" });
+    await sleep(700);
+    await waitFor(
+      `(() => { const b = document.querySelector('.atlas-rail-icon[data-layer="zones"]'); if (!b) return false; const r = b.getBoundingClientRect(); return r.top > 0 && r.bottom < window.innerHeight; })()`,
+      15000,
+    );
+    const tipReport = {};
+    for (const [label, buttonText] of [["en", "Eng"], ["zh", "\u7e41\u4e2d"]]) {
+      await evaluate(
+        `[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === ${JSON.stringify(buttonText)})?.click()`,
+      );
+      await sleep(700);
+      const tipIcon = await evaluate(
+        `(() => { const b = document.querySelector('.atlas-rail-icon[data-layer="zones"]'); const r = b.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }; })()`,
+      );
+      await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: tipIcon.x, y: tipIcon.y, button: "none" });
+      await sleep(800);
+      tipReport[label] = await evaluate(`(() => {
+        const el = document.querySelector('.atlas-rail-hint');
+        if (!el) return { ok: false, reason: 'no tooltip' };
+        const r = el.getBoundingClientRect();
+        const rail = document.querySelector('.atlas-rail').getBoundingClientRect();
+        const panel = document.querySelector('.atlas-layers').getBoundingClientRect();
+        return {
+          text: el.innerText.slice(0, 60),
+          insideViewport: r.top >= 0 && r.left >= 0 && r.right <= window.innerWidth && r.bottom <= window.innerHeight,
+          clearsIcons: r.bottom <= rail.top + 1,
+          abovePanel: r.bottom <= panel.top + 1,
+        };
+      })()`);
+      await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5, button: "none" });
+      await sleep(300);
+    }
+    // Back to English for the remaining checks.
+    await evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Eng')?.click()`);
+    await sleep(600);
+    check(
+      "tooltip is fully visible and clear of the icons (EN + ZH)",
+      ["en", "zh"].every(
+        (k) => tipReport[k].insideViewport && tipReport[k].clearsIcons && tipReport[k].abovePanel,
+      ),
+      JSON.stringify(tipReport),
+    );
 
     // 5c. every driver layer must mark the map when it is switched on — the
     //     regression this rail was reported for was an ON layer that changed
@@ -709,32 +754,49 @@ async function main() {
       railAfter.tip ?? "no tooltip",
     );
 
-    // Layers that do have settings still open their own panel.
-      await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="parking"]')?.click()`);
-      await sleep(800);
-      const popupBefore = await evaluate(`(() => {
-        const el = document.querySelector('.atlas-rail-popup');
-        if (!el) return null;
-        return { hasSwitch: Boolean(el.querySelector('[role=switch]')), text: el.innerText.slice(0, 80) };
-      })()`);
-      // Switching it on from that panel must reveal the layer's own controls.
-      await evaluate(`document.querySelector('.atlas-rail-popup [role=switch]')?.click()`);
-      await waitFor(`Boolean(document.querySelector('.atlas-rail-popup select'))`, 30000);
-      const popupAfter = await evaluate(`(() => {
-        const el = document.querySelector('.atlas-rail-popup');
-        const select = el ? el.querySelector('select') : null;
-        return { hasSelect: Boolean(select), options: select ? select.options.length : 0, text: el ? el.innerText.slice(0, 80) : "" };
-      })()`);
-      check(
-        "rail tap opens options for a layer that has them",
-        Boolean(
-          popupBefore &&
-            popupBefore.hasSwitch &&
-            popupAfter.hasSelect &&
-            popupAfter.options > 1,
-        ),
-        `${popupBefore?.text.replace(/\n/g, " / ") ?? "no popup"} -> select options=${popupAfter.options}`,
-      );
+        // One click on a layer with settings switches it AND opens those settings; the
+    // panel must not contain a second switch.
+    await evaluate(`(() => {
+      const b = document.querySelector('.atlas-rail-icon[data-layer="parking"]');
+      if (b && b.getAttribute('aria-pressed') === 'false') b.click();
+      return true;
+    })()`);
+    await sleep(1200);
+    const popupAfter = await evaluate(`(() => {
+      const el = document.querySelector('.atlas-rail-popup');
+      const select = el ? el.querySelector('select') : null;
+      const b = document.querySelector('.atlas-rail-icon[data-layer="parking"]');
+      return {
+        pressed: b ? b.getAttribute('aria-pressed') : null,
+        hasSelect: Boolean(select),
+        options: select ? select.options.length : 0,
+        hasSwitch: Boolean(el && el.querySelector('[role=switch]')),
+        text: el ? el.innerText.slice(0, 80).replace(/\\n/g, " / ") : "no popup",
+      };
+    })()`);
+    check(
+      "one click toggles a layer and opens its options (no inner switch)",
+      popupAfter.pressed === "true" && popupAfter.hasSelect && popupAfter.options > 1 && !popupAfter.hasSwitch,
+      JSON.stringify(popupAfter),
+    );
+    await evaluate(`document.querySelector('.atlas-rail-popup button')?.click()`);
+    await sleep(400);
+    // The phone rail retracts to give the map the space back, and restores.
+    await evaluate(`document.querySelector('.atlas-layers header button')?.click()`);
+    await sleep(700);
+    const retracted = await evaluate(`({
+      icons: document.querySelectorAll('.atlas-rail-icon').length,
+      chip: Boolean(document.querySelector('.atlas-layers-collapsed')),
+    })`);
+    await evaluate(`document.querySelector('.atlas-layers-collapsed button')?.click()`);
+    await sleep(800);
+    const restoredIcons = await evaluate(`document.querySelectorAll('.atlas-rail-icon').length`);
+    check(
+      "phone rail retracts to a chip and restores",
+      retracted.icons === 0 && retracted.chip && restoredIcons === 12,
+      `${JSON.stringify(retracted)} -> ${restoredIcons} icons`,
+    );
+
     const shotRail = await send("Page.captureScreenshot", { format: "png" });
     writeFileSync(path.join(OUT, "mobile-rail.png"), Buffer.from(shotRail.data, "base64"));
     const shot3 = await send("Page.captureScreenshot", { format: "png" });

@@ -235,32 +235,34 @@ body {
   border-color: color-mix(in srgb, var(--c-expressway) 20%, transparent);
 }
 
-/* ---------- phone layer rail: one coloured icon per layer + popup ---------- */
-.atlas-layers-bottom {
-  max-height: 70vh;
-  overflow: hidden;
-  border-radius: var(--radius);
+/* ---------- layer rail: one coloured icon per layer, docked bottom-centre ---------- */
+.atlas-layers {
+  /* The tooltip and settings panel float above the panel, so nothing is clipped. */
+  position: relative;
+  overflow: visible;
 }
 
-/* The desktop strip is the same control as the phone rail, in a small card. */
-.atlas-layers-side {
-  max-height: calc(100dvh - 150px);
-  overflow: hidden;
+.atlas-layers-phone {
+  width: 100%;
 }
 
-/* The rail is docked at the bottom of the window on a phone. */
-.atlas-rail-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 0 8px;
+.atlas-layers-bar {
+  width: max-content;
+  /* Leave the bottom-right MapLibre control column (zoom / geolocate) a gutter, so a
+     wide dock wraps instead of painting over those controls. */
+  max-width: min(94vw, 780px, calc(100vw - 150px));
+}
+
+.atlas-layers-collapsed {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--mint));
 }
 
 .atlas-rail {
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  padding: 0 12px 4px;
+  padding: 0 12px 10px;
 }
 
 .atlas-rail-icon {
@@ -277,20 +279,16 @@ body {
 }
 
 /*
- * The rail sits at the bottom of the window and wraps onto two rows, so a bubble
- * anchored to a single icon either opens off-screen or hides behind the next row.
- * One shared bubble above the rail is always fully visible and can wrap the layer
- * description, which is what replaced the old per-icon card.
+ * The rail wraps onto two rows and sits against the bottom of the window, so a
+ * bubble anchored to a single icon is either clipped or hidden behind the next row.
+ * One shared bubble floats above the whole panel instead: always on screen, never
+ * covering the icons it describes, and free to wrap in English or Chinese.
  */
-.atlas-rail-bar {
-  position: relative;
-}
-
 .atlas-rail-hint {
   position: absolute;
   left: 12px;
   right: 12px;
-  bottom: calc(100% + 6px);
+  bottom: calc(100% + 8px);
   z-index: 6;
   padding: 7px 10px;
   border-radius: 10px;
@@ -301,6 +299,20 @@ body {
   color: #fff;
   box-shadow: 0 8px 20px -12px rgb(23 19 15 / 65%);
   pointer-events: none;
+}
+
+/* Points the bubble at the tile the pointer is on, rather than letting a wide dock
+   show its text hundreds of pixels away from the icon it describes. */
+.atlas-rail-hint::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: clamp(16px, var(--hint-x, 50%), calc(100% - 16px));
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: var(--ink);
+  transform: rotate(45deg) translateY(-4px);
 }
 
 .atlas-rail-icon[data-active="true"] {
@@ -352,11 +364,16 @@ body {
   box-shadow: 0 0 0 2px var(--surface);
 }
 
+/* Settings float above the panel too, so the icons never move when it opens. */
 .atlas-rail-popup {
-  position: relative;
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(100% + 8px);
+  z-index: 7;
   max-height: 46vh;
   overflow-y: auto;
-  margin: 0 12px 10px;
+  margin: 0;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
@@ -754,7 +771,7 @@ button,
 @media (max-width: 639px) {
   .maplibregl-ctrl-attrib.maplibregl-compact {
     /* Clear the docked phone layer rail so the OSM attribution stays visible. */
-    margin: 0 4px 152px 0 !important;
+    margin: 0 4px 182px 0 !important;
   }
 }
 

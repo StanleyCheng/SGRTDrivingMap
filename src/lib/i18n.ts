@@ -19,14 +19,11 @@ const en = {
   "panel.allOff": "All layers are hidden. Turn one on to see points on the map.",
   "header.collapse": "Tap to collapse the bar",
   "header.expand": "Expand the bar",
-  "panel.on": "Show layer",
-  "panel.off": "Hide layer",
   "panel.cameraGroup": "Camera locations",
 
   "road.panel.title": "Road conditions",
   "road.panel.summary": "{mapped} mapped · {total} reports",
   "road.panel.updated": "Road data updated",
-  "road.panel.unmapped": "{n} reports have no published map location",
   "road.panel.coverage": "Expressway links only · LTA publishes {n} monitored links",
   "road.panel.activeNow": "Active now",
   "road.panel.autoShown": "Shown automatically while an alert is active",
@@ -224,8 +221,6 @@ const en = {
     "Static GitHub Pages build: camera layers are baked from the official datasets at build time; live traffic images are fetched straight from data.gov.sg every 60 seconds.",
   "src.gapNote":
     "Average-speed camera zones (Tanah Merah Coast Road) are published by the Traffic Police only as a web page — not as an open dataset or API — so they are not plotted here:",
-
-  "err.upstream": "Upstream data source unavailable",
   "err.loadFailed": "Couldn't load this layer",
   "err.map": "The map component failed to load.",
   "err.offline": "No network connection to the data source.",
@@ -258,14 +253,11 @@ const zh: Record<keyof typeof en, string> = {
   "panel.allOff": "所有圖層已隱藏，開啟其中一個即可在地圖上顯示。",
   "header.collapse": "點擊收合頂部列",
   "header.expand": "展開頂部列",
-  "panel.on": "顯示圖層",
-  "panel.off": "隱藏圖層",
   "panel.cameraGroup": "攝影機位置",
 
   "road.panel.title": "道路狀況",
   "road.panel.summary": "已標示 {mapped} 個 · 共 {total} 則通報",
   "road.panel.updated": "道路資料更新於",
-  "road.panel.unmapped": "{n} 則通報未有官方地圖位置",
   "road.panel.coverage": "只顯示快速公路路段 · 陸交局共發布 {n} 條監測路段",
   "road.panel.activeNow": "正在生效",
   "road.panel.autoShown": "有警報生效時自動顯示",
@@ -460,8 +452,6 @@ const zh: Record<keyof typeof en, string> = {
     "此為 GitHub Pages 靜態版本：攝影機圖層於建置時由官方數據集產生；實時交通影像每 60 秒直接從 data.gov.sg 取得。",
   "src.gapNote":
     "平均車速攝影機區域（丹那美拉海岸路）只在交通警察網頁公布，未提供開放數據或 API，因此未顯示於此地圖：",
-
-  "err.upstream": "上游資料來源暫時無法連線",
   "err.loadFailed": "此圖層載入失敗",
   "err.map": "地圖元件載入失敗。",
   "err.offline": "無法連接資料來源網絡。",
