@@ -1,0 +1,397 @@
+{
+  "source": "LTA DataMall API User Guide & Documentation, ANNEX D — Zone ID attribute to specific ERP gantry/gantries",
+  "sourceUrl": "https://datamall.lta.gov.sg/content/dam/datamall/datasets/LTA_DataMall_API_User_Guide.pdf",
+  "note": "Verbatim official table. LTA publishes no machine-readable join between the ERP gantry geometry layer (GeospatialWholeIsland:ERPGantry) and these rate zones, so the zone name is resolved from this published table rather than inferred.",
+  "zones": [
+    {
+      "zoneId": "BMC",
+      "gantryNo": 1,
+      "location": "Victoria Street"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 2,
+      "location": "Nicoll Highway"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 3,
+      "location": "Eu Tong Sen Street"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 4,
+      "location": "Orchard Link"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 5,
+      "location": "Lim Teck Kim Road"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 6,
+      "location": "Anson Road"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 7,
+      "location": "Tanjong Pagar Road"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 9,
+      "location": "Bencoolen Street"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 10,
+      "location": "Queen Street"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 11,
+      "location": "North Bridge Road"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 12,
+      "location": "Oxley Road"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 13,
+      "location": "Orchard Road"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 14,
+      "location": "Orchard Turn"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 15,
+      "location": "Killiney Road"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 16,
+      "location": "Beach Road"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 17,
+      "location": "Temasek Boulevard"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 18,
+      "location": "Republic Boulevard"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 19,
+      "location": "Havelock Road/Clemenceau Ave"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 20,
+      "location": "Havelock Road/CTE Exit"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 21,
+      "location": "Buyong Road"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 22,
+      "location": "Kramat Road"
+    },
+    {
+      "zoneId": "BMC",
+      "gantryNo": 23,
+      "location": "River Valley Road"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 24,
+      "location": "Merchant Road/Clemenceau Ave"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 25,
+      "location": "Merchant Road/CTE Exit"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 26,
+      "location": "Clemenceau Ave"
+    },
+    {
+      "zoneId": "OC1",
+      "gantryNo": 27,
+      "location": "Cairnhill Road"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 28,
+      "location": "Central Boulevard"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 29,
+      "location": "Slip Road from Westbound MCE towards Maxwell Road"
+    },
+    {
+      "zoneId": "EC1",
+      "gantryNo": 30,
+      "location": "ECP to City"
+    },
+    {
+      "zoneId": "CT1",
+      "gantryNo": 31,
+      "location": "CTE after Braddell Road"
+    },
+    {
+      "zoneId": "PE1",
+      "gantryNo": 32,
+      "location": "PIE after Kallang Bahru on Woodsville Flyover"
+    },
+    {
+      "zoneId": "CT1",
+      "gantryNo": 33,
+      "location": "CTE from Serangoon Road"
+    },
+    {
+      "zoneId": "CT1",
+      "gantryNo": 34,
+      "location": "CTE from Balestier Road"
+    },
+    {
+      "zoneId": "CT4",
+      "gantryNo": 35,
+      "location": "CTE before Braddell Road"
+    },
+    {
+      "zoneId": "AY1",
+      "gantryNo": 36,
+      "location": "AYE to City before Alexandra Road"
+    },
+    {
+      "zoneId": "PE2",
+      "gantryNo": 37,
+      "location": "PIE to Changi after Adam Road Exit"
+    },
+    {
+      "zoneId": "PE2",
+      "gantryNo": 38,
+      "location": "PIE to Changi / Whitley Road"
+    },
+    {
+      "zoneId": "THM",
+      "gantryNo": 39,
+      "location": "Thomson Road after Toa Payoh Rise"
+    },
+    {
+      "zoneId": "OR1",
+      "gantryNo": 40,
+      "location": "Bendemeer Road"
+    },
+    {
+      "zoneId": "AYT",
+      "gantryNo": 41,
+      "location": "AYE to Tuas Before Clementi Road"
+    },
+    {
+      "zoneId": "PE3",
+      "gantryNo": 42,
+      "location": "PIE into CTE"
+    },
+    {
+      "zoneId": "DZ1",
+      "gantryNo": 43,
+      "location": "Dunearn Road / Wayang Satu Flyover"
+    },
+    {
+      "zoneId": "DZ1",
+      "gantryNo": 44,
+      "location": "Dunearn Road / Whitley Road"
+    },
+    {
+      "zoneId": "PE1",
+      "gantryNo": 45,
+      "location": "PIE slip road to Bendemeer Road"
+    },
+    {
+      "zoneId": "CT5",
+      "gantryNo": 46,
+      "location": "CTE Northbound after PIE"
+    },
+    {
+      "zoneId": "OC2",
+      "gantryNo": 47,
+      "location": "Orchard Road after YMCA"
+    },
+    {
+      "zoneId": "OC3",
+      "gantryNo": 48,
+      "location": "Orchard Road after Handy Road"
+    },
+    {
+      "zoneId": "OC2",
+      "gantryNo": 49,
+      "location": "Fort Canning Tunnel"
+    },
+    {
+      "zoneId": "KP2",
+      "gantryNo": 50,
+      "location": "KPE Southbound after Defu Flyover"
+    },
+    {
+      "zoneId": "CT6",
+      "gantryNo": 51,
+      "location": "CTE Northbound before exit to PIE"
+    },
+    {
+      "zoneId": "AYC",
+      "gantryNo": 52,
+      "location": "Clementi Avenue 6 into AYE (City)"
+    },
+    {
+      "zoneId": "AYC",
+      "gantryNo": 53,
+      "location": "Clementi Avenue 2 into AYE (City)"
+    },
+    {
+      "zoneId": "BKE",
+      "gantryNo": 54,
+      "location": "Bt Timah Expressway (Sb betw Dairy Farm Rd and PIE)"
+    },
+    {
+      "zoneId": "UBT",
+      "gantryNo": 55,
+      "location": "Upper Bt Timah Rd Southbound after Hume Ave"
+    },
+    {
+      "zoneId": "TPZ",
+      "gantryNo": 56,
+      "location": "Toa Payoh Lorong 6"
+    },
+    {
+      "zoneId": "KBZ",
+      "gantryNo": 57,
+      "location": "Kallang Bahru"
+    },
+    {
+      "zoneId": "GBZ",
+      "gantryNo": 58,
+      "location": "Geylang Bahru"
+    },
+    {
+      "zoneId": "BKZ",
+      "gantryNo": 59,
+      "location": "Upper Boon Keng Road"
+    },
+    {
+      "zoneId": "SR2",
+      "gantryNo": 60,
+      "location": "Eu Tong Sen Street at Central"
+    },
+    {
+      "zoneId": "SR1",
+      "gantryNo": 61,
+      "location": "New Bridge Road before Upper Circular Road"
+    },
+    {
+      "zoneId": "SR1",
+      "gantryNo": 62,
+      "location": "South Bridge Road before Upper Circular Road"
+    },
+    {
+      "zoneId": "SR2",
+      "gantryNo": 63,
+      "location": "Fullerton Road eastbound at Fullerton Hotel"
+    },
+    {
+      "zoneId": "SR1",
+      "gantryNo": 64,
+      "location": "Fullerton Road westbound at One Fullerton"
+    },
+    {
+      "zoneId": "PE4",
+      "gantryNo": 65,
+      "location": "PIE westbound before Eunos Link"
+    },
+    {
+      "zoneId": "SR2",
+      "gantryNo": 66,
+      "location": "Bayfront Avenue towards Raffles Avenue"
+    },
+    {
+      "zoneId": "CT5",
+      "gantryNo": 67,
+      "location": "PIE to CTE Northbound before Braddell Road"
+    },
+    {
+      "zoneId": "CT2",
+      "gantryNo": 68,
+      "location": "CTE slip road to PIE (Changi) / Serangoon Road"
+    },
+    {
+      "zoneId": "SR1",
+      "gantryNo": 69,
+      "location": "Bayfront Avenue Towards Marina Boulevard"
+    },
+    {
+      "zoneId": "KAL",
+      "gantryNo": 70,
+      "location": "Geylang Road"
+    },
+    {
+      "zoneId": "OR1",
+      "gantryNo": 71,
+      "location": "Woodsville Tunnel"
+    },
+    {
+      "zoneId": "CBD",
+      "gantryNo": 72,
+      "location": "Sheares Avenue towards Sheares Link"
+    },
+    {
+      "zoneId": "EC3",
+      "gantryNo": 73,
+      "location": "ECP eastbound before exit to KPE"
+    },
+    {
+      "zoneId": "AYC",
+      "gantryNo": 74,
+      "location": "AYE to City Before Clementi Avenue 6"
+    },
+    {
+      "zoneId": "KP1",
+      "gantryNo": 80,
+      "location": "KPE Southbound exit to ECP (City)"
+    },
+    {
+      "zoneId": "MC1",
+      "gantryNo": 90,
+      "location": "MCE westbound exit to Marina Coastal Drive"
+    },
+    {
+      "zoneId": "MC1",
+      "gantryNo": 91,
+      "location": "MCE westbound before exit to Maxwell Road"
+    },
+    {
+      "zoneId": "MC2",
+      "gantryNo": 92,
+      "location": "Marina Boulevard to MCE eastbound"
+    },
+    {
+      "zoneId": "MC2",
+      "gantryNo": 93,
+      "location": "MCE eastbound before exit to Central Boulevard"
+    }
+  ]
+}

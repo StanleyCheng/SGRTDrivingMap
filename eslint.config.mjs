@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local scratch/data cache (regenerated from the official APIs).
+    ".cache/**",
   ]),
 ]);
 

@@ -16,6 +16,7 @@ import {
   STATIC_MODE,
 } from "@/lib/client-data";
 import { withCurrentTrafficCameras } from "@/lib/current-traffic-cameras";
+import { geometryFocus, geometryZoom } from "@/lib/geometry";
 import type {
   CameraPoint,
   CamerasResponse,
@@ -37,6 +38,11 @@ const ROAD_DEFAULTS: Record<RoadLayerId, boolean> = {
   incidents: true,
   hazards: true,
   roadworks: false,
+  parking: false,
+  erp: false,
+  ev: false,
+  zones: false,
+  expressway: false,
 };
 const TRAFFIC_POLL_MS = 60_000;
 const ROAD_POLL_MS = 60_000;
@@ -205,18 +211,12 @@ export default function App() {
 
   const focusOnRoad = useCallback(
     (feature: RoadConditionFeature, zoom?: number) => {
-      if (!feature.geometry) return;
-      const [lng, lat] =
-        feature.geometry.type === "Point"
-          ? feature.geometry.coordinates
-          : [
-              (feature.geometry.coordinates[0][0] + feature.geometry.coordinates[1][0]) / 2,
-              (feature.geometry.coordinates[0][1] + feature.geometry.coordinates[1][1]) / 2,
-            ];
+      const centre = geometryFocus(feature.geometry);
+      if (!centre) return;
       setFocus({
-        lat,
-        lng,
-        zoom: zoom ?? (feature.geometry.type === "Point" ? 15.5 : 14),
+        lat: centre.lat,
+        lng: centre.lng,
+        zoom: zoom ?? geometryZoom(feature.geometry),
         key: `${feature.id}:${Date.now()}`,
         padding: mobile ? { bottom: 320 } : { right: 400 },
       });

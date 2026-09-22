@@ -35,8 +35,14 @@ export async function writeDisk<T>(key: string, entry: CacheEntry<T>) {
   try {
     await fs.mkdir(DIR, { recursive: true });
     await fs.writeFile(path.join(DIR, `${key}.json`), JSON.stringify(entry));
-  } catch {
-    // Read-only filesystem (e.g. serverless): memory cache still applies.
+  } catch (error) {
+    // Read-only filesystem (e.g. serverless): memory cache still applies. Any
+    // other failure is worth surfacing once, because it silently weakens the
+    // stale-fallback this app relies on when an upstream feed is unreachable.
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code && !["EROFS", "EACCES", "EPERM"].includes(code)) {
+      console.error(`[cache] could not persist ${key}:`, error);
+    }
   }
 }
 

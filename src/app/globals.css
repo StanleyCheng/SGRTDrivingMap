@@ -36,6 +36,13 @@
   --c-hazard: #a52f3f;
   --c-roadworks: #6c5a91;
 
+  /* Route-aware extras: parking, tolling, charging, safety zones, corridors. */
+  --c-parking: #1b6f8a;
+  --c-erp: #8f5a12;
+  --c-ev: #4a7c1e;
+  --c-zones: #a63f7a;
+  --c-expressway: #34497a;
+
   --ok: #15803d;
   --warn: #b45309;
   --err: #b42318;
@@ -67,6 +74,11 @@
   --color-incident: var(--c-incident);
   --color-hazard: var(--c-hazard);
   --color-roadworks: var(--c-roadworks);
+  --color-parking: var(--c-parking);
+  --color-erp: var(--c-erp);
+  --color-ev: var(--c-ev);
+  --color-zones: var(--c-zones);
+  --color-expressway: var(--c-expressway);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-err: var(--err);
@@ -196,12 +208,51 @@ body {
   border-color: color-mix(in srgb, var(--c-roadworks) 20%, transparent);
 }
 
+.atlas-layer[data-layer="parking"] {
+  --layer-tint: color-mix(in srgb, var(--c-parking) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-parking) 20%, transparent);
+}
+
+.atlas-layer[data-layer="erp"] {
+  --layer-tint: color-mix(in srgb, var(--c-erp) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-erp) 20%, transparent);
+}
+
+.atlas-layer[data-layer="ev"] {
+  --layer-tint: color-mix(in srgb, var(--c-ev) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-ev) 20%, transparent);
+}
+
+.atlas-layer[data-layer="zones"] {
+  --layer-tint: color-mix(in srgb, var(--c-zones) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-zones) 20%, transparent);
+}
+
+.atlas-layer[data-layer="expressway"] {
+  --layer-tint: color-mix(in srgb, var(--c-expressway) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-expressway) 20%, transparent);
+}
+
 /* ---------- phone layer rail: one coloured icon per layer + popup ---------- */
+.atlas-layers-mobile {
+  max-height: 70vh;
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+/* The rail is docked at the bottom of the window on a phone. */
+.atlas-rail-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0 8px;
+}
+
 .atlas-rail {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 4px 12px 10px;
+  padding: 0 12px 4px;
 }
 
 .atlas-rail-icon {
@@ -268,12 +319,129 @@ body {
 
 .atlas-rail-popup {
   position: relative;
+  max-height: 46vh;
+  overflow-y: auto;
   margin: 0 12px 10px;
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   background: var(--surface);
   box-shadow: 0 10px 24px -18px rgb(23 19 15 / 45%);
+}
+
+/* ---------- compact cards used by the route-aware layer summaries ---------- */
+.atlas-mini-card {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid color-mix(in srgb, var(--layer-color, var(--line)) 18%, var(--line));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--layer-color, var(--line)) 7%, var(--surface));
+  font-size: 9px;
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+
+.atlas-mini-card b {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.atlas-mini-card i {
+  font-style: normal;
+  color: var(--muted);
+}
+
+.atlas-corridor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  gap: 6px;
+}
+
+.atlas-corridor em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.atlas-emas-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--c-expressway);
+  border-radius: 7px;
+  background: var(--surface);
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+
+.atlas-emas-sign {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--c-expressway);
+}
+
+.atlas-erp-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.atlas-erp-zone {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.atlas-erp-zone b {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--c-erp);
+}
+
+.atlas-erp-zone i,
+.atlas-erp-charge em {
+  font-style: normal;
+  font-size: 9px;
+  line-height: 1.25;
+  color: var(--muted);
+}
+
+.atlas-erp-charge {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  text-align: right;
+}
+
+.atlas-erp-charge b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.atlas-erp-charge i {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--muted);
 }
 
 .atlas-layer[data-active="false"] {
@@ -446,6 +614,20 @@ button,
   transform: translateY(0);
 }
 
+@media (max-width: 639px) {
+  /* Twelve icons must fit a phone without turning the rail into a wall: 46 px
+     tiles give roughly seven per row on a 390 px viewport. */
+  .atlas-rail {
+    gap: 6px;
+    padding: 0 10px 4px;
+  }
+  .atlas-rail-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+}
+
 /* Scrollbars */
 .scroll-thin {
   scrollbar-width: thin;
@@ -501,7 +683,8 @@ button,
 
 @media (max-width: 639px) {
   .maplibregl-ctrl-attrib.maplibregl-compact {
-    margin: 0 4px 76px 0 !important;
+    /* Clear the docked phone layer rail so the OSM attribution stays visible. */
+    margin: 0 4px 152px 0 !important;
   }
 }
 

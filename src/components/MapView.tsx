@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { StringKey } from "@/lib/i18n";
-import { LAYERS } from "@/lib/layers";
+import { LAYERS, ROAD_LAYER_COLOR, ROAD_LAYER_ORDER } from "@/lib/layers";
 import type {
   CameraKind,
   CameraPoint,
+  LayerFilters,
   LayerId,
   RoadConditionFeature,
-  RoadConditionKind,
   RoadLayerId,
 } from "@/lib/types";
 import { useI18n } from "./i18n-provider";
@@ -69,10 +69,10 @@ const KIND_SHAPES: Record<CameraKind, "dot" | "diamond" | "square"> = {
   snapshot: "square",
 };
 
-const ROAD_LAYER_IDS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
-// Layer 1 carries both the green→red segments and LTA's "Heavy Traffic" alerts.
-const ROAD_POINT_LAYERS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
-const ROAD_KINDS: Exclude<RoadConditionKind, "speed-band">[] = [
+const ROAD_LAYER_IDS: RoadLayerId[] = ROAD_LAYER_ORDER;
+
+/** Road kinds drawn as an alert glyph: incidents, hazards and works. */
+const ROAD_MARKER_KINDS = [
   "congestion-alert",
   "accident",
   "breakdown",
@@ -84,20 +84,42 @@ const ROAD_KINDS: Exclude<RoadConditionKind, "speed-band">[] = [
   "faulty-traffic-light",
   "road-work",
   "road-opening",
-];
+] as const;
+type RoadMarkerKind = (typeof ROAD_MARKER_KINDS)[number];
 
-const ROAD_COLOR_VAR: Record<RoadLayerId, string> = {
-  "traffic-speed": "--c-traffic",
-  incidents: "--c-incident",
-  hazards: "--c-hazard",
-  roadworks: "--c-roadworks",
+/**
+ * Which layer owns which MapLibre layer ids. Expressway advisories deliberately
+ * have no map layer — they are compact cards in the panel, never map clutter.
+ */
+const ROAD_DRAW_LAYERS: Record<RoadLayerId, string[]> = {
+  "traffic-speed": [
+    "road-traffic-speed-casing",
+    "road-traffic-speed-line",
+    "road-traffic-speed-hit",
+    "road-traffic-speed-points",
+  ],
+  incidents: ["road-incidents-points", "road-incidents-hit"],
+  hazards: ["road-hazards-points", "road-hazards-hit"],
+  roadworks: ["road-roadworks-points", "road-roadworks-hit"],
+  parking: ["road-parking-points", "road-parking-hit"],
+  ev: ["road-ev-points", "road-ev-hit"],
+  erp: ["road-erp-casing", "road-erp-line", "road-erp-hit"],
+  zones: ["road-zones-fill", "road-zones-outline", "road-zones-hit"],
+  expressway: [],
 };
+
+/** School/silver boundaries are a zoom-gated safety overlay, not a base layer. */
+const ZONE_MIN_ZOOM = 14;
+const ERP_MIN_ZOOM = 14;
+
+/** CSS token per driver-facing layer, resolved to a literal colour for MapLibre. */
+const ROAD_COLOR_VAR: Record<RoadLayerId, string> = ROAD_LAYER_COLOR;
 
 /**
  * One alert glyph per incident category, so an accident, a breakdown, a blocked
  * lane and a diversion never look alike on the map.
  */
-const ALERT_GLYPHS: Record<Exclude<RoadConditionKind, "speed-band">, string> = {
+const ALERT_GLYPHS: Record<RoadMarkerKind, string> = {
   // Congestion: three shrinking bars, the standard "traffic" mark.
   "congestion-alert": `<circle cx="26" cy="26" r="22" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M15 19h22M17 26h18M21 33h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
   accident: `<path d="M26 5 49 45H3Z" fill="COLOR" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M26 18v13" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><circle cx="26" cy="38" r="2.6" fill="#fff"/>`,
@@ -117,8 +139,22 @@ const ALERT_GLYPHS: Record<Exclude<RoadConditionKind, "speed-band">, string> = {
   "road-opening": `<rect x="6" y="8" width="40" height="34" rx="7" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M26 34V19M26 19l-6 6M26 19l6 6" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 38h22" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>`,
 };
 
-function roadMarkerSvg(kind: Exclude<RoadConditionKind, "speed-band">, color: string) {
+function roadMarkerSvg(kind: RoadMarkerKind, color: string) {
   const shape = ALERT_GLYPHS[kind].replaceAll("COLOR", color);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">${shape}</svg>`;
+}
+
+/**
+ * Parking and charging markers: a P and a plug, so the two facilities never look
+ * alike. The live number (lots, or free/total points) is drawn beside the icon.
+ */
+const EXTRA_MARKER_GLYPHS: Record<"parking-lot" | "ev-charger", string> = {
+  "parking-lot": `<rect x="3" y="3" width="46" height="46" rx="12" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M20 38V14h8.4a8 8 0 0 1 0 16H20" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`,
+  "ev-charger": `<rect x="3" y="6" width="46" height="40" rx="12" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M29 13 20 28h8l-5 11" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+};
+
+function extraMarkerSvg(kind: "parking-lot" | "ev-charger", color: string) {
+  const shape = EXTRA_MARKER_GLYPHS[kind].replaceAll("COLOR", color);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">${shape}</svg>`;
 }
 
@@ -152,6 +188,28 @@ function resolveColor(value: string, fallback: string) {
   return cssVar(name ?? value, fallback);
 }
 
+/**
+ * Property filters for the route-aware layers. Filtering the source data — rather
+ * than adding MapLibre filter expressions — keeps the panel and the map on
+ * exactly the same predicate.
+ */
+function matchesRoadFilters(feature: RoadConditionFeature, filters?: LayerFilters) {
+  if (!filters) return true;
+  const properties = feature.properties;
+  if (properties.layer === "parking") {
+    return !filters.lotType || properties.lotType === filters.lotType;
+  }
+  if (properties.layer === "ev") {
+    if (filters.plugType && properties.plugType !== filters.plugType) return false;
+    if (filters.minPowerKw) {
+      const kw = properties.powerRatingKw ?? properties.chargingSpeedKw ?? 0;
+      if (kw < filters.minPowerKw) return false;
+    }
+    if (filters.availableOnly && !(properties.availablePoints ?? 0)) return false;
+  }
+  return true;
+}
+
 export interface MapFocus {
   lat: number;
   lng: number;
@@ -168,6 +226,8 @@ export interface MapViewProps {
   onSelect: (point: CameraPoint | null) => void;
   roadFeatures: RoadConditionFeature[];
   roadActive: Record<RoadLayerId, boolean>;
+  /** Property filters applied to the route-aware layers (5–8). */
+  layerFilters?: LayerFilters;
   /** Restrict incident alert icons to one route (null = every route). */
   incidentRoute: string | null;
   selectedRoadId: string | null;
@@ -183,6 +243,7 @@ export default function MapView({
   onSelect,
   roadFeatures,
   roadActive,
+  layerFilters,
   incidentRoute,
   selectedRoadId,
   onRoadSelect,
@@ -219,7 +280,8 @@ export default function MapView({
   const roadColors = useMemo(() => {
     const resolved = new Map<RoadLayerId, string>();
     for (const id of ROAD_LAYER_IDS) {
-      resolved.set(id, cssVar(ROAD_COLOR_VAR[id], "#6b625b"));
+      // The registry stores `var(--x)`; MapLibre needs the resolved literal.
+      resolved.set(id, resolveColor(ROAD_COLOR_VAR[id], "#6b625b"));
     }
     return resolved;
   }, []);
@@ -233,7 +295,7 @@ export default function MapView({
         svg: markerSvg(kind, colors.get(layer?.id ?? "redlight") ?? "#17130f"),
       });
     }
-    for (const kind of ROAD_KINDS) {
+    for (const kind of ROAD_MARKER_KINDS) {
       const layer: RoadLayerId =
         kind === "flood-alert" || kind === "faulty-traffic-light"
           ? "hazards"
@@ -245,6 +307,13 @@ export default function MapView({
       defs.push({
         id: `road-mk-${kind}`,
         svg: roadMarkerSvg(kind, roadColors.get(layer) ?? "#6b625b"),
+      });
+    }
+    for (const kind of ["parking-lot", "ev-charger"] as const) {
+      const layer: RoadLayerId = kind === "parking-lot" ? "parking" : "ev";
+      defs.push({
+        id: `road-mk-${kind}`,
+        svg: extraMarkerSvg(kind, roadColors.get(layer) ?? "#6b625b"),
       });
     }
     await Promise.all(
@@ -268,6 +337,9 @@ export default function MapView({
     const heavy = cssVar("--c-traffic-heavy", "#c65b3e");
     const severe = cssVar("--c-traffic-severe", "#9f3340");
     const unknown = cssVar("--c-traffic-unknown", "#78857e");
+    const erpColor = cssVar("--c-erp", "#8f5a12");
+    const zonesColor = cssVar("--c-zones", "#a63f7a");
+    const inkColor = cssVar("--ink", "#203b36");
     const speedColor: maplibregl.ExpressionSpecification = [
       "case",
       ["<=", ["coalesce", ["get", "speedBand"], 0], 0],
@@ -455,16 +527,27 @@ export default function MapView({
         });
     }
 
-    for (const id of ROAD_POINT_LAYERS) {
+    // Every driver-facing layer owns one source; the draw layers below decide
+    // whether it appears as segments, alert icons, markers, gantry spans or
+    // zoom-gated boundaries.
+    for (const id of ROAD_LAYER_IDS) {
       const source = `road-${id}`;
-      // Layer 1 already owns this source for its speed segments.
       if (!mapInstance.getSource(source)) {
         mapInstance.addSource(source, { type: "geojson", data: empty });
       }
+    }
+
+    // 2–4 · alert icons (accidents, hazards, works) and layer 1's heavy-traffic mark.
+    // Layer 1's own hit area is the wide speed-band line added above, so only its
+    // marker symbols are added here.
+    for (const id of ["traffic-speed", "incidents", "hazards", "roadworks"] as RoadLayerId[]) {
       mapInstance.addLayer({
-        id: `${source}-points`,
+        id: `road-${id}-points`,
         type: "symbol",
-        source,
+        source: `road-${id}`,
+        // The speed source also carries LineString speed bands; a symbol layer must
+        // never try to draw an icon for them.
+        filter: ["==", ["geometry-type"], "Point"],
         layout: {
           "icon-image": ["concat", "road-mk-", ["get", "kind"]],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.52, 16, 0.72],
@@ -472,13 +555,135 @@ export default function MapView({
           "icon-anchor": "center",
         },
       });
+      if (id === "traffic-speed") continue;
       mapInstance.addLayer({
-        id: `${source}-hit`,
+        id: `road-${id}-hit`,
         type: "circle",
-        source,
+        source: `road-${id}`,
         paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
       });
     }
+
+    // 5 · parking: a P marker whose label is the live lot count.
+    mapInstance.addLayer({
+      id: "road-parking-points",
+      type: "symbol",
+      source: "road-parking",
+      minzoom: 12,
+      layout: {
+        "icon-image": "road-mk-parking-lot",
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.42, 17, 0.6],
+        "icon-allow-overlap": true,
+        "text-field": ["to-string", ["coalesce", ["get", "availableLots"], 0]],
+        "text-font": ["Open Sans Semibold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 13],
+        "text-anchor": "top",
+        "text-offset": [0, 1.2],
+        "text-allow-overlap": false,
+      },
+      paint: { "text-color": inkColor, "text-halo-color": "#ffffff", "text-halo-width": 1.6 },
+    });
+    mapInstance.addLayer({
+      id: "road-parking-hit",
+      type: "circle",
+      source: "road-parking",
+      minzoom: 12,
+      paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
+    });
+
+    // 7 · EV charging: a plug marker labelled with free/total points.
+    mapInstance.addLayer({
+      id: "road-ev-points",
+      type: "symbol",
+      source: "road-ev",
+      minzoom: 12,
+      layout: {
+        "icon-image": "road-mk-ev-charger",
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.42, 17, 0.6],
+        "icon-allow-overlap": true,
+        "text-field": [
+          "concat",
+          ["to-string", ["coalesce", ["get", "availablePoints"], 0]],
+          "/",
+          ["to-string", ["coalesce", ["get", "totalPoints"], 0]],
+        ],
+        "text-font": ["Open Sans Semibold"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 13],
+        "text-anchor": "top",
+        "text-offset": [0, 1.2],
+        "text-allow-overlap": false,
+      },
+      paint: { "text-color": inkColor, "text-halo-color": "#ffffff", "text-halo-width": 1.6 },
+    });
+    mapInstance.addLayer({
+      id: "road-ev-hit",
+      type: "circle",
+      source: "road-ev",
+      minzoom: 12,
+      paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
+    });
+
+    // 6 · ERP gantry spans. Geometry only at close zoom; the cost summary lives in
+    // the panel, so the map is never carpeted with toll markers.
+    mapInstance.addLayer({
+      id: "road-erp-casing",
+      type: "line",
+      source: "road-erp",
+      minzoom: ERP_MIN_ZOOM,
+      paint: {
+        "line-color": "#ffffff",
+        "line-opacity": 0.85,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 4, 17, 8],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-erp-line",
+      type: "line",
+      source: "road-erp",
+      minzoom: ERP_MIN_ZOOM,
+      paint: {
+        "line-color": erpColor,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 17, 5],
+        "line-dasharray": [3, 1.4],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-erp-hit",
+      type: "line",
+      source: "road-erp",
+      minzoom: ERP_MIN_ZOOM,
+      paint: { "line-color": "#000000", "line-opacity": 0.01, "line-width": 16 },
+    });
+
+    // 8 · school & silver zones — a zoom-gated safety overlay.
+    mapInstance.addLayer({
+      id: "road-zones-fill",
+      type: "fill",
+      source: "road-zones",
+      minzoom: ZONE_MIN_ZOOM,
+      paint: { "fill-color": zonesColor, "fill-opacity": 0.16 },
+    });
+    mapInstance.addLayer({
+      id: "road-zones-outline",
+      type: "line",
+      source: "road-zones",
+      minzoom: ZONE_MIN_ZOOM,
+      paint: {
+        "line-color": zonesColor,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 1.2, 17, 2.4],
+        "line-dasharray": [2, 1.2],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-zones-hit",
+      type: "fill",
+      source: "road-zones",
+      minzoom: ZONE_MIN_ZOOM,
+      paint: { "fill-color": "#000000", "fill-opacity": 0.01 },
+    });
+
+    // 9 · expressway travel times and EMAS messages intentionally have no map
+    // layer: they are compact corridor cards in the panel, not map clutter.
 
     mapInstance.addSource("road-selected", { type: "geojson", data: empty });
     mapInstance.addLayer({
@@ -505,12 +710,22 @@ export default function MapView({
         "circle-stroke-color": "#17130f",
       },
     });
+    mapInstance.addLayer({
+      id: "road-selected-fill",
+      type: "fill",
+      source: "road-selected",
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: { "fill-color": "#17130f", "fill-opacity": 0.1 },
+    });
 
-    const roadPointInteractive = ROAD_POINT_LAYERS.flatMap((id) => [
-      `road-${id}-hit`,
-      `road-${id}-points`,
-    ]);
-    const roadInteractive = ["road-traffic-speed-hit", ...roadPointInteractive];
+    const roadInteractive = [
+      "road-traffic-speed-hit",
+      "road-erp-hit",
+      "road-zones-hit",
+      ...(
+        ["traffic-speed", "incidents", "hazards", "roadworks", "parking", "ev"] as RoadLayerId[]
+      ).flatMap((id) => [`road-${id}-hit`, `road-${id}-points`]),
+    ];
     const cameraInteractive = LAYERS.flatMap((layer) => [
       `${layer.id}-hit`,
       `${layer.id}-points`,
@@ -679,6 +894,7 @@ export default function MapView({
               !incidentRoute ||
               feature.properties.route === incidentRoute,
           )
+          .filter((feature) => matchesRoadFilters(feature, layerFilters))
           .map((feature) => ({
             type: "Feature" as const,
             id: feature.id,
@@ -687,7 +903,7 @@ export default function MapView({
           })),
       });
     }
-  }, [roadFeatures, incidentRoute, ready]);
+  }, [roadFeatures, incidentRoute, layerFilters, ready]);
 
   /* ---------------- layer visibility ---------------- */
   useEffect(() => {
@@ -707,16 +923,7 @@ export default function MapView({
     if (!mapInstance || !ready) return;
     for (const layer of ROAD_LAYER_IDS) {
       const visible = roadActive[layer] ? "visible" : "none";
-      const layerIds =
-        layer === "traffic-speed"
-          ? [
-              "road-traffic-speed-casing",
-              "road-traffic-speed-line",
-              "road-traffic-speed-hit",
-              "road-traffic-speed-points",
-            ]
-          : [`road-${layer}-points`, `road-${layer}-hit`];
-      for (const id of layerIds) {
+      for (const id of ROAD_DRAW_LAYERS[layer]) {
         if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, "visibility", visible);
       }
     }

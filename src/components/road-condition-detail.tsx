@@ -2,19 +2,11 @@
 
 import type { CSSProperties } from "react";
 import { formatCoords, formatDateTime } from "@/lib/format";
-import type {
-  RoadConditionFeature,
-  RoadConditionLayerInfo,
-  RoadLayerId,
-} from "@/lib/types";
+import { geometryFocus } from "@/lib/geometry";
+import { ROAD_LAYER_COLOR } from "@/lib/layers";
+import type { RoadConditionFeature, RoadConditionLayerInfo } from "@/lib/types";
 import { useI18n } from "./i18n-provider";
-
-const ROAD_COLOR: Record<RoadLayerId, string> = {
-  "traffic-speed": "var(--c-traffic)",
-  incidents: "var(--c-incident)",
-  hazards: "var(--c-hazard)",
-  roadworks: "var(--c-roadworks)",
-};
+import { LOT_TYPE_KEYS } from "./layer-ui";
 
 function CloseGlyph() {
   return (
@@ -58,13 +50,19 @@ export function RoadConditionDetail({
 }: RoadConditionDetailProps) {
   const { t, lang } = useI18n();
   const { properties, geometry } = feature;
-  const color = ROAD_COLOR[properties.layer];
+  const color = ROAD_LAYER_COLOR[properties.layer];
+  const centre = geometryFocus(geometry);
   const coordinates =
     geometry?.type === "Point"
       ? formatCoords(geometry.coordinates[1], geometry.coordinates[0])
-      : geometry?.type === "LineString"
-        ? `${formatCoords(geometry.coordinates[0][1], geometry.coordinates[0][0])} ${t("road.detail.to")} ${formatCoords(geometry.coordinates[1][1], geometry.coordinates[1][0])}`
-        : "—";
+      : geometry?.type === "LineString" && geometry.coordinates.length >= 2
+        ? `${formatCoords(geometry.coordinates[0][1], geometry.coordinates[0][0])} ${t("road.detail.to")} ${formatCoords(
+            geometry.coordinates[geometry.coordinates.length - 1][1],
+            geometry.coordinates[geometry.coordinates.length - 1][0],
+          )}`
+        : centre
+          ? formatCoords(centre.lat, centre.lng)
+          : "—";
   const speed =
     properties.minimumSpeed != null || properties.maximumSpeed != null
       ? `${properties.minimumSpeed ?? 0}–${properties.maximumSpeed ?? "∞"} km/h`
@@ -76,9 +74,23 @@ export function RoadConditionDetail({
       ? `${formatDateTime(properties.startsAt, lang)} ${t("road.detail.to")} ${formatDateTime(properties.endsAt, lang)}`
       : null;
 
+  const money = (value: number) => `$${value.toFixed(2)}`;
+  const lotType = properties.lotType ? t(LOT_TYPE_KEYS[properties.lotType] ?? "road.detail.lotType") : null;
+  const points =
+    properties.totalPoints != null
+      ? `${properties.availablePoints ?? 0} / ${properties.totalPoints}`
+      : null;
+  const segment =
+    properties.startPoint || properties.endPoint
+      ? `${properties.startPoint ?? "—"} → ${properties.endPoint ?? "—"}`
+      : null;
+
   const rows = [
     properties.route ? { label: t("road.detail.route"), value: properties.route } : null,
     properties.direction ? { label: t("road.detail.direction"), value: properties.direction } : null,
+    properties.directionLabel
+      ? { label: t("road.detail.direction"), value: properties.directionLabel }
+      : null,
     properties.landmark ? { label: t("road.detail.landmark"), value: properties.landmark } : null,
     properties.lane ? { label: t("road.detail.lane"), value: properties.lane } : null,
     properties.reportedText
@@ -87,12 +99,66 @@ export function RoadConditionDetail({
     properties.road && properties.road !== properties.route
       ? { label: t("road.detail.road"), value: properties.road }
       : null,
+    properties.development && properties.development !== properties.road
+      ? { label: t("road.detail.development"), value: properties.development }
+      : null,
     properties.description
       ? { label: t("road.detail.description"), value: properties.description }
       : null,
     speed ? { label: t("road.detail.speed"), value: speed } : null,
     properties.severity
       ? { label: t("road.detail.severity"), value: properties.severity }
+      : null,
+    properties.availableLots != null
+      ? { label: t("road.detail.lots"), value: `${properties.availableLots}` }
+      : null,
+    lotType ? { label: t("road.detail.lotType"), value: lotType } : null,
+    properties.kind === "parking-lot"
+      ? {
+          label: t("road.detail.gantryHeight"),
+          // URA and LTA carparks have no published height; say so instead of
+          // implying the data is missing by accident.
+          value:
+            properties.gantryHeightM != null
+              ? `${properties.gantryHeightM} m · HDB Carpark Information`
+              : t("road.parking.noHeight"),
+        }
+      : null,
+    properties.zoneId ? { label: t("road.detail.zone"), value: properties.zoneId } : null,
+    properties.charge != null
+      ? {
+          label: t("road.detail.charge"),
+          value: `${money(properties.charge)}${properties.chargeWindow ? ` · ${properties.chargeWindow}` : ""}`,
+        }
+      : null,
+    properties.nextCharge != null
+      ? {
+          label: t("road.detail.nextCharge"),
+          value: `${money(properties.nextCharge)}${properties.nextWindow ? ` · ${properties.nextWindow}` : ""}`,
+        }
+      : null,
+    properties.plugType ? { label: t("road.detail.connector"), value: properties.plugType } : null,
+    properties.powerRatingKw != null
+      ? { label: t("road.detail.power"), value: `${properties.powerRatingKw} kW` }
+      : null,
+    properties.chargingSpeedKw != null
+      ? { label: t("road.detail.chargingSpeed"), value: `${properties.chargingSpeedKw} kW` }
+      : null,
+    properties.operatorName
+      ? { label: t("road.detail.operator"), value: properties.operatorName }
+      : null,
+    points ? { label: t("road.detail.points"), value: points } : null,
+    properties.zoneType ? { label: t("road.detail.zoneType"), value: properties.zoneType } : null,
+    properties.speedLimitKmh != null
+      ? { label: t("road.detail.speedLimit"), value: t("road.zones.limit", { n: properties.speedLimitKmh }) }
+      : null,
+    properties.corridor ? { label: t("road.detail.corridor"), value: properties.corridor } : null,
+    properties.estMinutes != null
+      ? { label: t("road.detail.estTime"), value: t("road.expressway.minutes", { n: properties.estMinutes }) }
+      : null,
+    segment ? { label: t("road.detail.segment"), value: segment } : null,
+    properties.equipmentId
+      ? { label: t("road.detail.equipment"), value: properties.equipmentId }
       : null,
     period ? { label: t("road.detail.period"), value: period } : null,
     properties.startsAt && !properties.endsAt && !properties.reportedText

@@ -47,7 +47,18 @@ export async function loadTrafficImages(signal?: AbortSignal): Promise<TrafficIm
   }
 }
 
-const ROAD_LAYER_IDS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
+/** Every driver-facing layer, in panel priority order. */
+const ROAD_LAYER_IDS: RoadLayerId[] = [
+  "traffic-speed",
+  "incidents",
+  "hazards",
+  "roadworks",
+  "parking",
+  "erp",
+  "ev",
+  "zones",
+  "expressway",
+];
 
 function unavailableRoadConditions(error: string): RoadConditionsResponse {
   const layers: RoadConditionLayerInfo[] = ROAD_LAYER_IDS.map((id) => ({
@@ -74,14 +85,21 @@ function unavailableRoadConditions(error: string): RoadConditionsResponse {
  * layers as unavailable instead of attempting a credentialed upstream call.
  */
 export async function loadRoadConditions(
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; layers?: RoadLayerId[] } = {},
 ): Promise<RoadConditionsResponse> {
   if (STATIC_MODE) {
     return unavailableRoadConditions("Live road conditions require the server-hosted app");
   }
 
+  // Layer counts always come back in full; the feature list is narrowed to the
+  // layers that are actually switched on. An empty list sends `?layers=` so an
+  // "everything off" view fetches counts only.
+  const query = options.layers ? `?layers=${options.layers.join(",")}` : "";
   try {
-    const response = await fetch("/api/road-conditions", { signal: options.signal, cache: "no-store" });
+    const response = await fetch(`/api/road-conditions${query}`, {
+      signal: options.signal,
+      cache: "no-store",
+    });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return (await response.json()) as RoadConditionsResponse;
   } catch (error) {

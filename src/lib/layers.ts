@@ -1,4 +1,4 @@
-import type { CameraKind, LayerId } from "./types";
+import type { CameraKind, LayerId, RoadLayerId } from "./types";
 
 /**
  * The static GitHub Pages build has no server, so it reads LTA's live image feed
@@ -106,6 +106,50 @@ export const LAYERS: LayerDef[] = [
 ];
 
 export const LAYER_BY_ID = new Map(LAYERS.map((l) => [l.id, l]));
+
+/**
+ * Every driver-facing overlay, in panel priority order, with the CSS variable
+ * that carries its signal colour. Colour is always paired with a distinct
+ * glyph, so hue is never the only way to tell two layers apart.
+ */
+export const ROAD_LAYER_ORDER: RoadLayerId[] = [
+  "traffic-speed",
+  "incidents",
+  "hazards",
+  "roadworks",
+  "parking",
+  "erp",
+  "ev",
+  "zones",
+  "expressway",
+];
+
+export const ROAD_LAYER_COLOR: Record<RoadLayerId, string> = {
+  "traffic-speed": "var(--c-traffic)",
+  incidents: "var(--c-incident)",
+  hazards: "var(--c-hazard)",
+  roadworks: "var(--c-roadworks)",
+  parking: "var(--c-parking)",
+  erp: "var(--c-erp)",
+  ev: "var(--c-ev)",
+  zones: "var(--c-zones)",
+  expressway: "var(--c-expressway)",
+};
+
+/**
+ * Official documentation surfaced by the route-aware overlays. Kept here (not
+ * in a server module) so client components can link to them directly.
+ */
+export const DOC_LINKS = {
+  datamallGuide:
+    "https://datamall.lta.gov.sg/content/dam/datamall/datasets/LTA_DataMall_API_User_Guide.pdf",
+  erpRates:
+    "https://onemotoring.lta.gov.sg/content/onemotoring/home/driving/ERP/ERP.html",
+  hdbCarparkInfo: "https://data.gov.sg/datasets/d_23f946fa557947f93a8043bbef41dd09/view",
+  ltaGantry: "https://data.gov.sg/datasets/d_753090823cc9920ac41efaa6530c5893/view",
+  schoolZone: "https://data.gov.sg/datasets/d_abf023b38d9bc451484e3d67b562bc5c/view",
+  silverZone: "https://data.gov.sg/datasets/d_dc343c021aa470fc71da90d31e552a9a/view",
+} as const;
 
 export function layerColor(id: LayerId) {
   return LAYER_BY_ID.get(id)?.color ?? "var(--ink)";

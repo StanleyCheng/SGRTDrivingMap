@@ -15,15 +15,19 @@ import {
   loadTrafficImages,
   STATIC_MODE,
 } from "@/lib/client-data";
+import { geometryFocus, geometryZoom } from "@/lib/geometry";
+import { ROAD_LAYER_ORDER } from "@/lib/layers";
 import { withCurrentTrafficCameras } from "@/lib/traffic-images";
-import type {
-  CameraPoint,
-  CamerasResponse,
-  LayerId,
-  RoadConditionFeature,
-  RoadConditionsResponse,
-  RoadLayerId,
-  TrafficImagesResponse,
+import {
+  DEFAULT_LAYER_FILTERS,
+  type CameraPoint,
+  type CamerasResponse,
+  type LayerFilters,
+  type LayerId,
+  type RoadConditionFeature,
+  type RoadConditionsResponse,
+  type RoadLayerId,
+  type TrafficImagesResponse,
 } from "@/lib/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), {
@@ -32,12 +36,17 @@ const MapView = dynamic(() => import("@/components/MapView"), {
 });
 
 // Layers 1 and 2 (live congestion, and accident/breakdown alerts) are the
-// default view per the agreed layer priority; everything else starts off.
+// default view per the agreed layer priority; the other seven start switched off.
 const ROAD_DEFAULTS: Record<RoadLayerId, boolean> = {
   "traffic-speed": true,
   incidents: true,
   hazards: false,
   roadworks: false,
+  parking: false,
+  erp: false,
+  ev: false,
+  zones: false,
+  expressway: false,
 };
 // The four live road layers need the DataMall key, so a static build has none of
 // them. Defaulting every camera layer off as well would open on an empty map,
@@ -65,6 +74,7 @@ export default function App() {
   const [selectedRoadId, setSelectedRoadId] = useState<string | null>(null);
   const [focus, setFocus] = useState<MapFocus | null>(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [filters, setFilters] = useState<LayerFilters>(DEFAULT_LAYER_FILTERS);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
 
@@ -104,9 +114,16 @@ export default function App() {
   }, [loadTraffic]);
 
   /* ---------------- live road conditions ---------------- */
+  // Only the layers that are switched on are fetched, so the default view stays
+  // small. Toggling a layer changes this identity and refetches once.
+  const activeRoadLayers = useMemo(
+    () => ROAD_LAYER_ORDER.filter((id) => roadActive[id]),
+    [roadActive],
+  );
+
   const loadRoads = useCallback(async (options: { refresh?: boolean; signal?: AbortSignal } = {}) => {
     try {
-      const next = await loadRoadConditions(options);
+      const next = await loadRoadConditions({ ...options, layers: activeRoadLayers });
       setRoadConditions((previous) => {
         if (next.status !== "error" || next.features.length > 0 || !previous?.features.length) {
           return next;
@@ -130,7 +147,7 @@ export default function App() {
     } finally {
       setRoadLoading(false);
     }
-  }, []);
+  }, [activeRoadLayers]);
 
   useEffect(() => {
     if (STATIC_MODE) return;
@@ -227,24 +244,22 @@ export default function App() {
 
   const focusOnRoad = useCallback(
     (feature: RoadConditionFeature, zoom?: number) => {
-      if (!feature.geometry) return;
-      const [lng, lat] =
-        feature.geometry.type === "Point"
-          ? feature.geometry.coordinates
-          : [
-              (feature.geometry.coordinates[0][0] + feature.geometry.coordinates[1][0]) / 2,
-              (feature.geometry.coordinates[0][1] + feature.geometry.coordinates[1][1]) / 2,
-            ];
+      const centre = geometryFocus(feature.geometry);
+      if (!centre) return;
       setFocus({
-        lat,
-        lng,
-        zoom: zoom ?? (feature.geometry.type === "Point" ? 15.5 : 14),
+        lat: centre.lat,
+        lng: centre.lng,
+        zoom: zoom ?? geometryZoom(feature.geometry),
         key: `${feature.id}:${Date.now()}`,
         padding: mobile ? { bottom: 320 } : { right: 400 },
       });
     },
     [mobile],
   );
+
+  const updateFilters = useCallback((patch: Partial<LayerFilters>) => {
+    setFilters((previous) => ({ ...previous, ...patch }));
+  }, []);
 
   const selectRoad = useCallback(
     (feature: RoadConditionFeature | null) => {
@@ -284,6 +299,7 @@ export default function App() {
         onSelect={select}
         roadFeatures={roadConditions?.features ?? []}
         roadActive={roadActive}
+        layerFilters={filters}
         incidentRoute={incidentRoute}
         selectedRoadId={selectedRoadId}
         onRoadSelect={selectRoad}
@@ -327,7 +343,10 @@ export default function App() {
           roadAvailable={!STATIC_MODE}
           collapsed={collapsed}
           onCollapsedChange={setCollapsed}
-          className="max-h-[68vh] sm:max-h-[calc(100dvh-160px)]"
+          mobile={mobile}
+          filters={filters}
+          onFilterChange={updateFilters}
+          className={`max-h-[68vh] sm:max-h-[calc(100dvh-160px)] ${mobile ? "!w-full !rounded-b-none" : ""}`}
         />
       </div>
 
@@ -342,7 +361,7 @@ export default function App() {
             feature={selectedRoad}
             layer={selectedRoadLayer}
             onClose={() => setSelectedRoadId(null)}
-            onZoom={(feature) => focusOnRoad(feature, feature.geometry?.type === "Point" ? 16.5 : 15)}
+            onZoom={(feature) => focusOnRoad(feature)}
             className="max-h-[70vh] sm:max-h-[calc(100dvh-32px)]"
           />
         ) : (

@@ -257,6 +257,19 @@ async function main() {
       /data layers/i.test(await evaluate("document.body.innerText")),
     );
 
+    // 2b. the agreed default view: nine driver layers + three camera layers, with
+    //     only the top two (live congestion, incidents) switched on.
+    const layerRows = await evaluate("document.querySelectorAll('.atlas-layer').length");
+    check("nine driver layers and three camera layers are listed", layerRows === 12, `rows=${layerRows}`);
+    const defaults = await evaluate(
+      `(() => [...document.querySelectorAll('[role=switch]')].map(x => x.getAttribute('aria-checked')).join(','))()`,
+    );
+    check(
+      "only the top two layers are on by default",
+      defaults === "true,true,false,false,false,false,false,false,false,false,false,false",
+      defaults,
+    );
+
     // 3. layer toggle hides/shows a layer
     const before = await evaluate(
       `(() => { const s = [...document.querySelectorAll('[role=switch]')]; return s.map(x => x.getAttribute('aria-checked')).join(','); })()`,
@@ -273,6 +286,15 @@ async function main() {
     // 4. clicking a marker opens the detail panel (markers are drawn on the canvas,
     //    so centre the map on a known camera, then dispatch a real click).
     //    Requires the dev-only window.__map handle; production builds skip these.
+    //    Camera layers start off by design, so switch them on first.
+    await evaluate(`(() => {
+      for (const id of ['redlight', 'speed', 'snapshot']) {
+        const sw = document.querySelector('[data-layer="' + id + '"] [role=switch]');
+        if (sw && sw.getAttribute('aria-checked') === 'false') sw.click();
+      }
+      return true;
+    })()`);
+    await sleep(1800);
     const target = api.points
       .filter((p) => p.layer === "redlight")
       .find((p) => p.lng > 103.79 && p.lng < 103.9 && p.lat > 1.31 && p.lat < 1.4);
@@ -353,6 +375,41 @@ async function main() {
       const shotLive = await send("Page.captureScreenshot", { format: "png" });
       writeFileSync(path.join(OUT, "desktop-live-camera.png"), Buffer.from(shotLive.data, "base64"));
     }
+
+    // 5b. the EV connector filter must actually narrow the map, not just the panel.
+    await evaluate(`(() => {
+      const sw = document.querySelector('[data-layer="ev"] [role=switch]');
+      if (sw && sw.getAttribute('aria-checked') === 'false') sw.click();
+      return true;
+    })()`);
+    await sleep(5000);
+    const evBefore = await evaluate(
+      `window.__map.queryRenderedFeatures({ layers: ['road-ev-points'] }).length`,
+    );
+    await evaluate(`(() => {
+      const sel = document.querySelector('#filter-ev-plug');
+      if (!sel) return false;
+      sel.value = 'Combo 2';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`);
+    await sleep(2500);
+    const evAfter = await evaluate(
+      `window.__map.queryRenderedFeatures({ layers: ['road-ev-points'] }).length`,
+    );
+    check(
+      "EV connector filter narrows the map",
+      evBefore > 0 && evAfter > 0 && evAfter < evBefore,
+      `rendered EV markers ${evBefore} -> ${evAfter}`,
+    );
+    await evaluate(`(() => {
+      const sel = document.querySelector('#filter-ev-plug');
+      if (sel) { sel.value = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+      const sw = document.querySelector('[data-layer="ev"] [role=switch]');
+      if (sw && sw.getAttribute('aria-checked') === 'true') sw.click();
+      return true;
+    })()`);
+    await sleep(800);
     }
 
     // 6. sources panel
@@ -396,6 +453,29 @@ async function main() {
       /data layers/i.test(mobileText) || mobileText.includes("240"),
       mobileText.slice(0, 60).replace(/\n/g, " / "),
     );
+
+    // The phone control is a coloured icon rail docked at the bottom: tapping an
+    // icon must pop that layer's own content above it.
+    const railIcons = await evaluate(
+      `(() => { const rail = document.querySelector('.atlas-rail'); return rail ? rail.children.length : 0; })()`,
+    );
+    check("phone layer rail shows an icon per layer", railIcons >= 9, `icons=${railIcons}`);
+    await evaluate(
+      `(() => { const b = document.querySelector('.atlas-rail-icon[data-layer="parking"]'); if (b) b.click(); return true; })()`,
+    );
+    await sleep(500);
+    const popup = await evaluate(`(() => {
+      const el = document.querySelector('.atlas-rail-popup');
+      if (!el) return null;
+      return { text: el.innerText.slice(0, 120), hasSwitch: Boolean(el.querySelector('[role=switch]')) };
+    })()`);
+    check(
+      "tapping a rail icon pops that layer's content",
+      Boolean(popup && popup.hasSwitch),
+      popup ? popup.text.replace(/\n/g, " / ") : "no popup",
+    );
+    const shotRail = await send("Page.captureScreenshot", { format: "png" });
+    writeFileSync(path.join(OUT, "mobile-rail.png"), Buffer.from(shotRail.data, "base64"));
     const shot3 = await send("Page.captureScreenshot", { format: "png" });
     writeFileSync(path.join(OUT, "mobile.png"), Buffer.from(shot3.data, "base64"));
 
