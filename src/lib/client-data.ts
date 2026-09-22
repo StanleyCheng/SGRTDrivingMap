@@ -1,7 +1,13 @@
 "use client";
 
 import { normaliseDataGovTraffic, retargetSourcesForStatic } from "./traffic-images";
-import type { CamerasResponse, TrafficImagesResponse } from "./types";
+import type {
+  CamerasResponse,
+  RoadConditionLayerInfo,
+  RoadConditionsResponse,
+  RoadLayerId,
+  TrafficImagesResponse,
+} from "./types";
 
 /**
  * Data access for the UI. The self-hosted build talks to this app's own API
@@ -38,5 +44,48 @@ export async function loadTrafficImages(signal?: AbortSignal): Promise<TrafficIm
   } catch (err) {
     if ((err as Error).name === "AbortError") throw err;
     return { generatedAt, status: "error", error: (err as Error).message, cameras: [] };
+  }
+}
+
+const ROAD_LAYER_IDS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
+
+function unavailableRoadConditions(error: string): RoadConditionsResponse {
+  const layers: RoadConditionLayerInfo[] = ROAD_LAYER_IDS.map((id) => ({
+    id,
+    count: 0,
+    mappedCount: 0,
+    status: "error",
+    sources: [],
+    error,
+  }));
+  return {
+    generatedAt: new Date().toISOString(),
+    status: "error",
+    fromCache: false,
+    layers,
+    features: [],
+    error,
+  };
+}
+
+/**
+ * Load live road conditions without ever putting the DataMall key in a browser
+ * bundle. GitHub Pages has no server-side proxy, so static builds report the
+ * layers as unavailable instead of attempting a credentialed upstream call.
+ */
+export async function loadRoadConditions(
+  options: { signal?: AbortSignal } = {},
+): Promise<RoadConditionsResponse> {
+  if (STATIC_MODE) {
+    return unavailableRoadConditions("Live road conditions require the server-hosted app");
+  }
+
+  try {
+    const response = await fetch("/api/road-conditions", { signal: options.signal, cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return (await response.json()) as RoadConditionsResponse;
+  } catch (error) {
+    if ((error as Error).name === "AbortError") throw error;
+    return unavailableRoadConditions((error as Error).message);
   }
 }

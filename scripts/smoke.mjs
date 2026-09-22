@@ -227,6 +227,16 @@ async function main() {
       imgProbe.total > 0 && imgProbe.loaded === imgProbe.total,
       `loaded=${imgProbe.loaded}/${imgProbe.total}; failures=${imgProbe.failures.join(',') || 'none'}`,
     );
+    const snapshotCount = await evaluate(`(() => {
+      const row = document.querySelector('[data-layer="snapshot"]');
+      const value = row?.querySelector('.num')?.textContent?.trim() ?? '';
+      return Number(value.replace(/[^0-9]/g, ''));
+    })()`);
+    check(
+      "snapshot layer contains only cameras in the current image feed",
+      snapshotCount === imgProbe.total,
+      `layer=${snapshotCount}; feed=${imgProbe.total}`,
+    );
 
     // 2. language toggle
     await evaluate(

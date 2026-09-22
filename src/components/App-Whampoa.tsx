@@ -15,7 +15,7 @@ import {
   loadTrafficImages,
   STATIC_MODE,
 } from "@/lib/client-data";
-import { withCurrentTrafficCameras } from "@/lib/traffic-images";
+import { withCurrentTrafficCameras } from "@/lib/current-traffic-cameras";
 import type {
   CameraPoint,
   CamerasResponse,
@@ -96,26 +96,12 @@ export default function App() {
   }, [loadTraffic]);
 
   /* ---------------- live road conditions ---------------- */
-  const loadRoads = useCallback(async (options: { refresh?: boolean; signal?: AbortSignal } = {}) => {
+  const loadRoads = useCallback(async (options: { signal?: AbortSignal } = {}) => {
     try {
       const next = await loadRoadConditions(options);
-      setRoadConditions((previous) => {
-        if (next.status !== "error" || next.features.length > 0 || !previous?.features.length) {
-          return next;
-        }
-        const message = next.error ?? "Live road conditions are temporarily unavailable";
-        return {
-          ...previous,
-          status: "stale",
-          fromCache: true,
-          error: message,
-          layers: previous.layers.map((layer) => ({
-            ...layer,
-            status: "stale",
-            error: message,
-          })),
-        };
-      });
+      // The server owns the bounded stale-cache policy. Never retain older
+      // live geometry after the server has declared it unusable.
+      setRoadConditions(next);
       setRoadError(next.status === "error" ? (next.error ?? null) : null);
     } catch (error) {
       if ((error as Error).name !== "AbortError") setRoadError((error as Error).message);
@@ -311,7 +297,7 @@ export default function App() {
           onRoadRetry={() => {
             setRoadError(null);
             setRoadLoading(true);
-            void loadRoads({ refresh: true });
+            void loadRoads();
           }}
           roadAvailable={!STATIC_MODE}
           collapsed={collapsed}

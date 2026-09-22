@@ -1,9 +1,16 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { StringKey } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
 import { LAYERS } from "@/lib/layers";
-import type { LayerId, LayerInfo, SourceStatus } from "@/lib/types";
+import type {
+  LayerId,
+  LayerInfo,
+  RoadConditionsResponse,
+  RoadLayerId,
+  SourceStatus,
+} from "@/lib/types";
 import { useI18n } from "./i18n-provider";
 
 export interface LayerPanelProps {
@@ -15,6 +22,13 @@ export interface LayerPanelProps {
   generatedAt: string | null;
   fromCache: boolean;
   onRetry: () => void;
+  roadConditions: RoadConditionsResponse | null;
+  roadActive: Record<RoadLayerId, boolean>;
+  onRoadToggle: (id: RoadLayerId) => void;
+  roadLoading: boolean;
+  roadError: string | null;
+  onRoadRetry: () => void;
+  roadAvailable: boolean;
   collapsed: boolean;
   onCollapsedChange: (v: boolean) => void;
   className?: string;
@@ -31,6 +45,13 @@ const STATUS_STYLE: Record<Exclude<SourceStatus, "ok">, { key: StringKey; color:
   partial: { key: "status.partial", color: "var(--warn)" },
   stale: { key: "status.stale", color: "var(--warn)" },
 };
+
+const ROAD_LAYERS: { id: RoadLayerId; color: string }[] = [
+  { id: "traffic-speed", color: "var(--c-traffic)" },
+  { id: "incidents", color: "var(--c-incident)" },
+  { id: "hazards", color: "var(--c-hazard)" },
+  { id: "roadworks", color: "var(--c-roadworks)" },
+];
 
 function Mark() {
   return (
@@ -80,7 +101,19 @@ function Glyph({ id, color }: { id: LayerId; color: string }) {
   );
 }
 
-function Switch({ on, color, label, onClick }: { on: boolean; color: string; label: string; onClick: () => void }) {
+function Switch({
+  on,
+  color,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  on: boolean;
+  color: string;
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -88,7 +121,8 @@ function Switch({ on, color, label, onClick }: { on: boolean; color: string; lab
       aria-checked={on}
       aria-label={label}
       onClick={onClick}
-      className="relative h-10 w-10 shrink-0 self-center rounded-full"
+      disabled={disabled}
+      className="relative h-10 w-10 shrink-0 self-center rounded-full disabled:cursor-not-allowed disabled:opacity-45"
     >
       <span
         className="absolute inset-x-0 top-2 h-6 rounded-full border transition-colors"
@@ -103,6 +137,136 @@ function Switch({ on, color, label, onClick }: { on: boolean; color: string; lab
   );
 }
 
+function RoadGlyph({ id }: { id: RoadLayerId }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {id === "traffic-speed" && <><path d="M2 5.5h16M2 10h16M2 14.5h16" /><path d="M5 3.5v4M10 8v4M15 12.5v4" opacity=".45" /></>}
+      {id === "incidents" && <><path d="M10 2.5 18 17H2L10 2.5Z" /><path d="M10 7v4.5M10 14.2v.1" /></>}
+      {id === "hazards" && <><path d="M10 1.8 18.2 10 10 18.2 1.8 10 10 1.8Z" /><path d="M10 5.8v5.2M10 14v.1" /></>}
+      {id === "roadworks" && <><path d="M3 6.5h14v7H3zM5.5 6.5l3 7M11.5 6.5l3 7M5 13.5 3.8 18M15 13.5l1.2 4.5" /></>}
+    </svg>
+  );
+}
+
+interface RoadGroupProps {
+  response: RoadConditionsResponse | null;
+  active: Record<RoadLayerId, boolean>;
+  onToggle: (id: RoadLayerId) => void;
+  loading: boolean;
+  error: string | null;
+  onRetry: () => void;
+  available: boolean;
+}
+
+function RoadConditionsGroup({
+  response,
+  active,
+  onToggle,
+  loading,
+  error,
+  onRetry,
+  available,
+}: RoadGroupProps) {
+  const { t, lang } = useI18n();
+  const total = response?.layers.reduce((sum, layer) => sum + layer.count, 0) ?? 0;
+  const mapped = response?.layers.reduce((sum, layer) => sum + layer.mappedCount, 0) ?? 0;
+  const unmapped = Math.max(0, total - mapped);
+  const status = response && response.status !== "ok" ? STATUS_STYLE[response.status] : null;
+  const anyOn = ROAD_LAYERS.some((layer) => active[layer.id]);
+
+  return (
+    <section className="atlas-road-group mt-3 px-3 py-3" aria-labelledby="road-layer-title">
+      <div className="flex items-center gap-2 px-1">
+        <span className="h-2 w-2 rounded-full bg-[var(--c-traffic)]" aria-hidden="true" />
+        <h3 id="road-layer-title" className="label flex-1">{t("road.panel.title")}</h3>
+        {loading && response ? (
+          <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
+            {t("status.refreshing")}
+          </span>
+        ) : status ? (
+          <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold" style={{ color: status.color, background: `color-mix(in srgb, ${status.color} 11%, transparent)` }}>
+            {t(status.key)}
+          </span>
+        ) : null}
+      </div>
+
+      {!available ? (
+        <p className="mt-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-2.5 text-[11px] leading-relaxed text-muted">
+          {t("road.panel.serverOnly")}
+        </p>
+      ) : loading && !response ? (
+        <div className="mt-2 space-y-1.5">
+          {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton h-12 rounded-[var(--radius-control)]" />)}
+        </div>
+      ) : (
+        <>
+          <ul className="mt-2 space-y-1.5">
+            {ROAD_LAYERS.map((def) => {
+              const info = response?.layers.find((layer) => layer.id === def.id);
+              const on = active[def.id];
+              const disabled = Boolean(info && info.mappedCount === 0);
+              const isOn = on && !disabled;
+              const itemStatus = info && info.status !== "ok" ? STATUS_STYLE[info.status] : null;
+              return (
+                <li
+                  key={def.id}
+                  className="atlas-road-row px-2.5 py-2"
+                  data-layer={def.id}
+                  data-active={isOn}
+                  style={{ "--road-color": def.color } as CSSProperties}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="atlas-road-glyph"><RoadGlyph id={def.id} /></span>
+                    <button type="button" onClick={() => onToggle(def.id)} disabled={disabled} className="min-w-0 flex-1 text-left disabled:cursor-not-allowed">
+                      <span className="block text-[12px] font-semibold leading-snug">{t(`road.layer.${def.id}.name`)}</span>
+                      <span className="mt-0.5 block text-[10px] leading-snug text-muted">{t(`road.layer.${def.id}.note`)}</span>
+                      <span className="mt-1 flex flex-wrap items-center gap-1.5 text-[9px] text-muted">
+                        <span className="num font-semibold text-ink-2">{info?.mappedCount ?? "—"}</span>
+                        <span>{t("common.mapped")}</span>
+                        {info && <span>· {info.count} {t("common.reports")}</span>}
+                        {itemStatus && <span style={{ color: itemStatus.color }}>· {t(itemStatus.key)}</span>}
+                      </span>
+                    </button>
+                    <Switch
+                      on={isOn}
+                      color={def.color}
+                      label={`${t(isOn ? "panel.off" : "panel.on")}: ${t(`road.layer.${def.id}.name`)}`}
+                      onClick={() => onToggle(def.id)}
+                      disabled={disabled}
+                    />
+                  </div>
+                  {def.id === "traffic-speed" && on && !disabled && (
+                    <div className="atlas-speed-legend mt-2" aria-label={t("legend.title")}>
+                      <span style={{ "--speed-color": "var(--c-traffic-free)" } as CSSProperties}><i />{t("road.legend.clear")}<b>60+ km/h</b></span>
+                      <span style={{ "--speed-color": "var(--c-traffic-moderate)" } as CSSProperties}><i />{t("road.legend.moderate")}<b>40–59 km/h</b></span>
+                      <span style={{ "--speed-color": "var(--c-traffic-heavy)" } as CSSProperties}><i />{t("road.legend.heavy")}<b>20–39 km/h</b></span>
+                      <span style={{ "--speed-color": "var(--c-traffic-severe)" } as CSSProperties}><i />{t("road.legend.severe")}<b>0–19 km/h</b></span>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="mt-2 space-y-1 px-1 text-[9px] leading-relaxed text-muted">
+            <p>{t("road.panel.summary", { mapped, total })}</p>
+            {unmapped > 0 && <p className="text-[var(--warn)]">{t("road.panel.unmapped", { n: unmapped })}</p>}
+            {!anyOn && <p className="text-[var(--warn)]">{t("road.panel.allOff")}</p>}
+            {response?.generatedAt && <p>{t("road.panel.updated")} {formatDateTime(response.generatedAt, lang)}</p>}
+            {response?.fromCache && <p className="text-[var(--warn)]">{t("status.cachedNote")}</p>}
+            {(error || response?.error) && (
+              <div className="pt-1">
+                <p className="font-mono text-[9px] break-words text-[var(--err)]">{error ?? response?.error}</p>
+                <button type="button" onClick={onRetry} className="mt-1 font-semibold text-[var(--err)] underline underline-offset-2">{t("status.retry")}</button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function LayerPanel({
   layers,
   active,
@@ -112,6 +276,13 @@ export function LayerPanel({
   generatedAt,
   fromCache,
   onRetry,
+  roadConditions,
+  roadActive,
+  onRoadToggle,
+  roadLoading,
+  roadError,
+  onRoadRetry,
+  roadAvailable,
   collapsed,
   onCollapsedChange,
   className = "",
@@ -175,7 +346,8 @@ export function LayerPanel({
         </div>
       )}
 
-      {loading && !layers ? (
+      <div className="scroll-thin min-h-0 overflow-y-auto">
+        {loading && !layers ? (
         <ul className="px-4 pb-2">
           {[0, 1, 2].map((i) => (
             <li key={i} className="flex items-center gap-3 py-4">
@@ -189,8 +361,8 @@ export function LayerPanel({
             </li>
           ))}
         </ul>
-      ) : (
-        <ul className="scroll-thin min-h-0 space-y-2 overflow-y-auto px-3">
+        ) : (
+          <ul className="space-y-2 px-3">
           {LAYERS.map((def) => {
             const info = layers?.find((l) => l.id === def.id);
             const on = active[def.id];
@@ -233,7 +405,7 @@ export function LayerPanel({
                   <Switch
                     on={on}
                     color={def.color}
-                    label={t(on ? "panel.off" : "panel.on")}
+                    label={`${t(on ? "panel.off" : "panel.on")}: ${t(`layer.${def.id}.name`)}`}
                     onClick={() => onToggle(def.id)}
                   />
                 </div>
@@ -258,8 +430,19 @@ export function LayerPanel({
               </li>
             );
           })}
-        </ul>
-      )}
+          </ul>
+        )}
+
+      <RoadConditionsGroup
+        response={roadConditions}
+        active={roadActive}
+        onToggle={onRoadToggle}
+        loading={roadLoading}
+        error={roadError}
+        onRetry={onRoadRetry}
+        available={roadAvailable}
+        />
+      </div>
 
       {layers && (
         <footer className="atlas-layer-footer shrink-0 space-y-1 border-t border-line px-4 py-3 text-[10px] leading-relaxed text-muted">

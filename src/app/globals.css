@@ -25,6 +25,17 @@
   --c-snapshot: #3e718b;
   --c-live: #3e718b;
 
+  /* Road-condition signals stay legible above the muted civic basemap. */
+  --c-traffic: #35735d;
+  --c-traffic-free: #26815b;
+  --c-traffic-moderate: #b37a18;
+  --c-traffic-heavy: #c65b3e;
+  --c-traffic-severe: #9f3340;
+  --c-traffic-unknown: #78857e;
+  --c-incident: #b55e28;
+  --c-hazard: #a52f3f;
+  --c-roadworks: #6c5a91;
+
   --ok: #15803d;
   --warn: #b45309;
   --err: #b42318;
@@ -52,6 +63,10 @@
   --color-redlight: var(--c-redlight);
   --color-speed: var(--c-speed);
   --color-snapshot: var(--c-snapshot);
+  --color-traffic: var(--c-traffic);
+  --color-incident: var(--c-incident);
+  --color-hazard: var(--c-hazard);
+  --color-roadworks: var(--c-roadworks);
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-err: var(--err);
@@ -183,6 +198,83 @@ body {
   margin-top: 12px;
   background: var(--surface-2);
   border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
+}
+
+.atlas-road-group {
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--mint) 28%, var(--surface));
+}
+
+.atlas-road-row {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  transition: background 180ms, border-color 180ms;
+}
+
+.atlas-road-row[data-active="true"] {
+  border-color: color-mix(in srgb, var(--road-color) 28%, var(--line));
+  background: color-mix(in srgb, var(--road-color) 7%, var(--surface));
+}
+
+.atlas-road-row:hover {
+  background: color-mix(in srgb, var(--road-color) 11%, var(--surface));
+}
+
+.atlas-road-glyph {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--road-color) 10%, var(--surface));
+  color: var(--road-color);
+}
+
+.atlas-speed-legend {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.atlas-speed-legend > span {
+  min-width: 0;
+  padding: 5px 3px;
+  border-left: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  font-size: 9px;
+  line-height: 1.15;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+.atlas-speed-legend > span:first-child {
+  border-left: 0;
+}
+
+.atlas-speed-legend i {
+  display: block;
+  width: 20px;
+  height: 3px;
+  margin: 0 auto 4px;
+  border-radius: 99px;
+  background: var(--speed-color);
+}
+
+.atlas-speed-legend b {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.atlas-road-detail {
+  border-top: 5px solid var(--detail-color, var(--c-traffic));
 }
 
 .atlas-detail {

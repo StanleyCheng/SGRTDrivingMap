@@ -52,7 +52,7 @@ const en = {
   "layer.speed.name": "Speed enforcement cameras",
   "layer.speed.note": "Fixed, digital, laser and mobile speed units (Traffic Police)",
   "layer.snapshot.name": "Traffic snapshot cameras",
-  "layer.snapshot.note": "Every camera currently published by LTA's live image feed",
+  "layer.snapshot.note": "LTA road cameras — official still images where still streamed",
 
   "kind.redlight": "Red-light camera",
   "kind.fixed_speed": "Fixed speed camera",
@@ -202,7 +202,7 @@ const zh: Record<keyof typeof en, string> = {
   "layer.speed.name": "超速執法攝影機",
   "layer.speed.note": "固定、數碼、雷射及流動測速裝置（交通警察）",
   "layer.snapshot.name": "交通快照攝影機",
-  "layer.snapshot.note": "陸交局實時影像資料源目前發布的所有攝影機",
+  "layer.snapshot.note": "陸交局道路攝影機，仍在提供實時影像者會顯示畫面",
 
   "kind.redlight": "紅燈攝影機",
   "kind.fixed_speed": "固定式超速攝影機",

@@ -26,9 +26,8 @@ const baked = path.join(root, "public", "data", "cameras.json");
 function bakeSnapshot() {
   if (!fs.existsSync(seed)) throw new Error(`missing ${path.relative(root, seed)}`);
   const { generatedAt, data } = JSON.parse(fs.readFileSync(seed, "utf8"));
-  // Older seeds included the separate illegal-parking camera inventory in the
-  // snapshot layer. Static builds expose only cameras that the image feed has
-  // actually published; the browser then replaces these from the live feed.
+  // Backward compatibility for older seeds that mixed the unrelated
+  // illegal-parking camera inventory into the snapshot-image layer.
   const points = data.points.filter((point) => point.layer !== "snapshot" || point.live);
   const snapshotCount = points.filter((point) => point.layer === "snapshot").length;
   const layers = data.layers.map((layer) =>

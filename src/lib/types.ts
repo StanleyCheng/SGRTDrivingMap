@@ -79,3 +79,82 @@ export interface TrafficImagesResponse {
   error?: string;
   cameras: TrafficCamera[];
 }
+
+/** The four driver-facing live road-condition overlays. */
+export type RoadLayerId = "traffic-speed" | "incidents" | "hazards" | "roadworks";
+
+/** One upstream feed represented within a road-condition layer. */
+export type RoadConditionKind =
+  | "speed-band"
+  | "traffic-incident"
+  | "flood-alert"
+  | "faulty-traffic-light"
+  | "road-work"
+  | "road-opening";
+
+export type RoadPosition = [lng: number, lat: number];
+
+export type RoadConditionGeometry =
+  | { type: "Point"; coordinates: RoadPosition }
+  | { type: "LineString"; coordinates: [RoadPosition, RoadPosition] };
+
+/**
+ * A GeoJSON-compatible road-condition feature. Some official LTA feeds do not
+ * publish coordinates, and invalid/out-of-Singapore coordinates are rejected;
+ * those records use `geometry: null` rather than a fabricated map position.
+ */
+export interface RoadConditionFeature {
+  type: "Feature";
+  id: string;
+  geometry: RoadConditionGeometry | null;
+  properties: {
+    layer: RoadLayerId;
+    kind: RoadConditionKind;
+    title: string;
+    description?: string;
+    road?: string;
+    sourceId: string;
+    /** Official upstream severity, when the source publishes one (flood alerts). */
+    severity?: string;
+    startsAt?: string;
+    endsAt?: string;
+    speedBand?: number;
+    minimumSpeed?: number;
+    maximumSpeed?: number;
+    /** DataMall category code (v4 uses numeric-looking strings; older feeds used A–G). */
+    roadCategory?: string;
+    radiusKm?: number;
+    agency?: string;
+  };
+}
+
+export interface RoadConditionSourceStatus {
+  id: RoadConditionKind;
+  name: string;
+  url: string;
+  status: SourceStatus;
+  count: number;
+  mappedCount: number;
+  /** ISO timestamp of the most recent successful fetch. */
+  fetchedAt?: string;
+  error?: string;
+}
+
+export interface RoadConditionLayerInfo {
+  id: RoadLayerId;
+  count: number;
+  mappedCount: number;
+  status: SourceStatus;
+  sources: RoadConditionSourceStatus[];
+  error?: string;
+}
+
+export interface RoadConditionsResponse {
+  generatedAt: string;
+  status: SourceStatus;
+  /** True when at least one source was served from its local cache. */
+  fromCache: boolean;
+  layers: RoadConditionLayerInfo[];
+  features: RoadConditionFeature[];
+  error?: string;
+}

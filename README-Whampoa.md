@@ -1,7 +1,8 @@
 # 新加坡實時交通資訊
 
-A bilingual (English / 繁體中文) map of official Singapore red-light and speed-enforcement
-cameras, plus every camera currently published by LTA's live Traffic Images feed.
+A bilingual (English / 繁體中文) map of every official camera and detection point the
+Singapore Government publishes as open data — red-light cameras, speed-enforcement cameras
+and LTA traffic snapshot cameras — plus the still-streaming live traffic images.
 
 - **Live site (GitHub Pages):** https://stanleycheng.github.io/SGRTDrivingMap/
 - **Repository:** https://github.com/StanleyCheng/SGRTDrivingMap
@@ -14,7 +15,7 @@ cameras, plus every camera currently published by LTA's live Traffic Images feed
 | Mode | Command | Data path |
 |---|---|---|
 | Self-hosted (Node server) | `npm run dev` / `npm run build && npm start` | own API routes; live images from LTA **DataMall** with the key held server-side |
-| Static (GitHub Pages) | `npm run build:static` → `out/` | baked enforcement-camera snapshot + keyless **data.gov.sg** live-image feed |
+| Static (GitHub Pages) | `npm run build:static` → `out/` | baked camera snapshot + keyless **data.gov.sg** mirror of the same live feed |
 
 The static export is what CI deploys; it needs no server, no API key and no database.
 
@@ -48,7 +49,7 @@ credentialed browser request; the camera map and keyless live traffic-image mirr
 |---|---|
 | Red-light cameras (240) | data.gov.sg — SPF Red Light Cameras `d_5f140c79…`, cross-checked with DTRLS `d_0b7ddc09…` |
 | Speed enforcement cameras (93) | data.gov.sg — SPF Fixed Speed `d_5fdeb9dc…`, Police Speed Laser `d_763b6039…`, Mobile Speed `d_e411f01a…`, consolidated list `d_983804de…` |
-| Traffic snapshot cameras (currently 8) | LTA DataMall `Traffic-Imagesv2`; keyless data.gov.sg mirror on GitHub Pages |
+| Traffic snapshot cameras (262) | data.gov.sg — LTA Road Camera `d_147f4906…` + LTA DataMall `Traffic-Imagesv2` (8 live stills) |
 | Basemap | OpenStreetMap standard raster tiles (keyless), with automatic fallback from an optional custom MapLibre style |
 
 ## Setup
@@ -105,14 +106,13 @@ dev-only.
 
 ## Data pipeline notes
 
-- Static enforcement-camera layers are fetched from data.gov.sg on the server, cached for 6 hours
+- Static camera layers are fetched from data.gov.sg on the server, cached for 6 hours
   (memory → `.cache/cameras.json` → bundled `src/data/cameras-seed.json`), and refreshed in
   the background. `GET /api/cameras?refresh=1` forces a re-download; a cold refresh takes
   ~60–70 s because data.gov.sg allows about one anonymous request every 10 s.
 - Live traffic images come from LTA DataMall (`Traffic-Imagesv2`), cached 45 s and polled by
-  the client every 60 s. The feed itself drives snapshot marker IDs, locations and counts,
-  so static deployments follow camera additions/removals without rebuilding. Cached signed
-  image URLs are discarded before their documented 15-minute expiry.
+  the client every 60 s. If LTA is unreachable the last good payload is served with
+  `status: "stale"` and a visible notice.
 - Live road conditions use six server-only LTA DataMall feeds with source-specific 2 min to
   24 h TTLs. Coordinate-free official reports are retained as unmapped records rather than
   guessed onto the map; speed-band lines are schematic start/end endpoints.

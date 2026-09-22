@@ -32,6 +32,8 @@ export const DG_DATASETS = {
    * (33 fixed incl. the 13 LTA-operated KPE/MCE cameras, 53 laser, 5 mobile).
    */
   speedList: "d_983804de2bc016f53e44031d85d1ec8a",
+  /** LTA Road Camera — full camera-location inventory (254 points). */
+  ltaRoadCam: "d_147f4906651f5b32925dfe6560296161",
 } as const;
 
 /** GeoJSON datasets that contribute speed-enforcement points, in fetch order. */
@@ -58,7 +60,6 @@ const CAMERAS_KEY = "cameras";
 const TRAFFIC_KEY = "traffic-images";
 const CAMERAS_TTL = 6 * 60 * 60 * 1000; // static datasets change a few times a year
 const TRAFFIC_TTL = 45 * 1000;
-const TRAFFIC_URL_MAX_AGE = 14 * 60 * 1000; // DataMall links expire after 15 minutes
 
 /* ------------------------------------------------------------------ *
  * Fetch primitives
@@ -247,6 +248,27 @@ function fromSpeedCsv(text: string): CameraPoint[] {
   return out;
 }
 
+/** LTA road-camera inventory: KML-style features with UNIQUE_ID inside an HTML blob. */
+function fromLtaRoadCameras(geojson: any): CameraPoint[] {
+  const out: CameraPoint[] = [];
+  for (const f of geojson?.features ?? []) {
+    const c = f?.geometry?.coordinates;
+    if (!c) continue;
+    const m = /UNIQUE_ID<\/th>\s*<td>(\d+)<\/td>/.exec(f?.properties?.Description ?? "");
+    const ref = m?.[1] ?? String(out.length + 1);
+    out.push({
+      id: `snapshot:${ref}`,
+      layer: "snapshot",
+      kind: "snapshot",
+      lat: round(Number(c[1])),
+      lng: round(Number(c[0])),
+      road: "",
+      ref,
+    });
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ *
  * Aggregation
  * ------------------------------------------------------------------ */
@@ -343,29 +365,51 @@ async function buildCameras(): Promise<BuiltCameras> {
     status.speed = status.speed === "error" ? "error" : "partial";
   }
 
-  // --- Live traffic images: this feed is the complete public snapshot layer. ---
+  // --- LTA road cameras (location inventory) ---
+  const ltaMeta = await settle("lta-roadcam-meta", () => dgMetadata(DG_DATASETS.ltaRoadCam));
+  const lta = await settle("lta-roadcam", () => dgQueuedJson(DG_DATASETS.ltaRoadCam));
+  const staticSnapshots = lta ? fromLtaRoadCameras(lta) : [];
+  points.push(...staticSnapshots);
+  push(
+    "snapshot",
+    "Land Transport Authority — Road Camera locations",
+    LAYERS[2].source[0].url,
+    ltaMeta?.lastUpdatedAt,
+  );
+  if (!lta) status.snapshot = "error";
+
+  // --- Live traffic images: flag matching cameras, add any not in the inventory ---
   const traffic = await settle("traffic-images", () => rawTrafficImages());
   if (traffic) {
     push(
       "snapshot",
       "Land Transport Authority — Traffic Images (live stills)",
-      LAYERS[2].source[0].url,
+      LAYERS[2].source[1].url,
       traffic.feedTimestamp,
     );
     for (const cam of traffic.cameras) {
-      points.push({
-        id: `snapshot:${cam.cameraId}`,
-        layer: "snapshot",
-        kind: "snapshot",
-        lat: round(cam.lat),
-        lng: round(cam.lng),
-        road: cam.name,
-        ref: cam.cameraId,
-        live: true,
-      });
+      // Only the static inventory can absorb a live camera; two live cameras are
+      // always distinct sites even when they sit a few metres apart.
+      const near = staticSnapshots.find((p) => metres(p.lat, p.lng, cam.lat, cam.lng) < 60);
+      if (near) {
+        near.live = true;
+        near.road = cam.name;
+        near.ref = cam.cameraId;
+      } else {
+        points.push({
+          id: `snapshot:live-${cam.cameraId}`,
+          layer: "snapshot",
+          kind: "snapshot",
+          lat: round(cam.lat),
+          lng: round(cam.lng),
+          road: cam.name,
+          ref: cam.cameraId,
+          live: true,
+        });
+      }
     }
   } else {
-    status.snapshot = "error";
+    status.snapshot = status.snapshot === "error" ? "error" : "partial";
   }
 
 
@@ -398,28 +442,6 @@ async function loadCameras(): Promise<CameraPayload> {
   return { points: built.points, layers: built.layers, failures: built.failures };
 }
 
-/** Strip the unrelated illegal-parking camera inventory from older cached seeds. */
-function currentSnapshotPayload(payload: CameraPayload): CameraPayload {
-  const points = payload.points.filter((point) => point.layer !== "snapshot" || point.live);
-  const snapshotCount = points.filter((point) => point.layer === "snapshot").length;
-  const layers = payload.layers.map((layer) =>
-    layer.id === "snapshot"
-      ? {
-          ...layer,
-          sources: layer.sources.filter(
-            (source) =>
-              !source.url.includes("d_147f4906651f5b32925dfe6560296161") &&
-              !source.name.includes("Road Camera locations"),
-          ),
-          count: snapshotCount,
-          liveCount: snapshotCount,
-          kinds: { snapshot: snapshotCount },
-        }
-      : layer,
-  );
-  return { ...payload, points, layers };
-}
-
 /** Resolve cached cameras; refresh in the background when older than the TTL. */
 export async function getCameras(opts: { force?: boolean } = {}): Promise<CamerasResponse> {
   let entry =
@@ -433,9 +455,7 @@ export async function getCameras(opts: { force?: boolean } = {}): Promise<Camera
   if (stale || opts.force) {
     if (opts.force || !entry) {
       try {
-        // Prune before caching: `.cache/cameras.json` is the documented re-seed
-        // source, so it must never contain the illegal-parking inventory.
-        const built = currentSnapshotPayload(await loadCameras());
+        const built = await loadCameras();
         entry = { data: built, generatedAt: new Date().toISOString() };
         fetchedNow = true;
         writeMemory(CAMERAS_KEY, entry);
@@ -446,8 +466,7 @@ export async function getCameras(opts: { force?: boolean } = {}): Promise<Camera
     } else {
       // Serve now, refresh behind the request.
       void loadCameras()
-        .then((raw) => {
-          const built = currentSnapshotPayload(raw);
+        .then((built) => {
           const fresh = { data: built, generatedAt: new Date().toISOString() };
           writeMemory(CAMERAS_KEY, fresh);
           return writeDisk(CAMERAS_KEY, fresh);
@@ -458,13 +477,12 @@ export async function getCameras(opts: { force?: boolean } = {}): Promise<Camera
 
   if (!entry) throw new UpstreamError("No camera data available from data.gov.sg");
   if (!readMemory(CAMERAS_KEY)) writeMemory(CAMERAS_KEY, entry);
-  const data = currentSnapshotPayload(entry.data);
 
   return {
     generatedAt: entry.generatedAt,
     fromCache: stale && !fetchedNow,
-    layers: data.layers,
-    points: data.points,
+    layers: entry.data.layers,
+    points: entry.data.points,
   };
 }
 
@@ -484,21 +502,6 @@ export interface RawTraffic {
   cameras: TrafficCamera[];
 }
 
-/** DataMall encodes the capture instant as a UTC token in the JPEG filename. */
-function dataMallImageTime(imageUrl: string): string | undefined {
-  try {
-    const filename = new URL(imageUrl).pathname.split("/").pop() ?? "";
-    const match = /_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})_/.exec(filename);
-    if (!match) return undefined;
-    const [, year, month, day, hour, minute, second] = match;
-    return new Date(
-      Date.UTC(+year, +month - 1, +day, +hour, +minute, +second),
-    ).toISOString();
-  } catch {
-    return undefined;
-  }
-}
-
 async function rawTrafficImages(): Promise<RawTraffic> {
   const j = await datamall("Traffic-Imagesv2");
   const cameras: TrafficCamera[] = [];
@@ -507,21 +510,16 @@ async function rawTrafficImages(): Promise<RawTraffic> {
     const lat = Number(c.Latitude);
     const lng = Number(c.Longitude);
     if (!id || !Number.isFinite(lat) || !Number.isFinite(lng) || !c.ImageLink) continue;
-    const imageUrl = String(c.ImageLink);
     cameras.push({
       cameraId: id,
       name: LTA_CAMERA_NAMES[id] ?? `LTA camera ${id}`,
       lat: round(lat),
       lng: round(lng),
-      imageUrl,
-      imageTime: dataMallImageTime(imageUrl) ?? new Date().toISOString(),
+      imageUrl: String(c.ImageLink),
+      imageTime: new Date().toISOString(),
     });
   }
-  const feedTimestamp = cameras
-    .map((camera) => camera.imageTime)
-    .sort()
-    .at(-1);
-  return { cameras, feedTimestamp };
+  return { cameras, feedTimestamp: new Date().toISOString() };
 }
 
 export async function getTrafficImages(): Promise<TrafficImagesResponse> {
@@ -537,7 +535,7 @@ export async function getTrafficImages(): Promise<TrafficImagesResponse> {
   try {
     const raw = await rawTrafficImages();
     const entry = {
-      data: raw,
+      data: { ...raw, feedTimestamp: new Date().toISOString() },
       generatedAt: new Date().toISOString(),
     };
     writeMemory(TRAFFIC_KEY, entry);
@@ -549,7 +547,7 @@ export async function getTrafficImages(): Promise<TrafficImagesResponse> {
       cameras: entry.data.cameras,
     };
   } catch (err) {
-    if (cached && ageMs(cached) < TRAFFIC_URL_MAX_AGE) {
+    if (cached) {
       return {
         generatedAt: cached.generatedAt,
         feedTimestamp: cached.data.feedTimestamp,

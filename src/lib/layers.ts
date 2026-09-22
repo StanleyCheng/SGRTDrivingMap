@@ -93,13 +93,6 @@ export const LAYERS: LayerDef[] = [
       {
         agency: "Land Transport Authority",
         agencyZh: "陸路交通管理局",
-        dataset: "LTA Road Camera (locations)",
-        datasetZh: "陸交局道路攝影機（位置）",
-        url: "https://data.gov.sg/datasets/d_147f4906651f5b32925dfe6560296161/view",
-      },
-      {
-        agency: "Land Transport Authority",
-        agencyZh: "陸路交通管理局",
         dataset: STATIC_MODE
           ? "Traffic Images (live stills, data.gov.sg)"
           : "Traffic Images (live stills, DataMall)",

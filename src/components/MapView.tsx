@@ -5,7 +5,14 @@ import maplibregl, { type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { StringKey } from "@/lib/i18n";
 import { LAYERS } from "@/lib/layers";
-import type { CameraKind, CameraPoint, LayerId } from "@/lib/types";
+import type {
+  CameraKind,
+  CameraPoint,
+  LayerId,
+  RoadConditionFeature,
+  RoadConditionKind,
+  RoadLayerId,
+} from "@/lib/types";
 import { useI18n } from "./i18n-provider";
 
 const TILES = ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"];
@@ -62,6 +69,35 @@ const KIND_SHAPES: Record<CameraKind, "dot" | "diamond" | "square"> = {
   snapshot: "square",
 };
 
+const ROAD_LAYER_IDS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
+const ROAD_POINT_LAYERS: RoadLayerId[] = ["incidents", "hazards", "roadworks"];
+const ROAD_KINDS: Exclude<RoadConditionKind, "speed-band">[] = [
+  "traffic-incident",
+  "flood-alert",
+  "faulty-traffic-light",
+  "road-work",
+  "road-opening",
+];
+
+const ROAD_COLOR_VAR: Record<RoadLayerId, string> = {
+  "traffic-speed": "--c-traffic",
+  incidents: "--c-incident",
+  hazards: "--c-hazard",
+  roadworks: "--c-roadworks",
+};
+
+function roadMarkerSvg(kind: Exclude<RoadConditionKind, "speed-band">, color: string) {
+  const shape =
+    kind === "traffic-incident"
+      ? `<path d="M26 7 47 45H5Z" fill="${color}" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M26 19v12" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="26" cy="38" r="2.5" fill="#fff"/>`
+      : kind === "flood-alert"
+        ? `<path d="M26 4 48 26 26 48 4 26Z" fill="${color}" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M17 30c4 0 4-3 8-3s4 3 8 3 4-3 8-3" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M20 21c3-5 6-8 6-8s3 3 6 8a6 6 0 0 1-12 0Z" fill="#fff"/>`
+        : kind === "faulty-traffic-light"
+          ? `<path d="M26 4 48 26 26 48 4 26Z" fill="${color}" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><rect x="20" y="13" width="12" height="26" rx="5" fill="#fff"/><circle cx="26" cy="20" r="3" fill="${color}"/><circle cx="26" cy="27" r="3" fill="${color}" opacity=".7"/><circle cx="26" cy="34" r="3" fill="${color}" opacity=".4"/>`
+          : `<rect x="6" y="8" width="40" height="34" rx="7" fill="${color}" stroke="#fff" stroke-width="4"/><path d="M13 18h26M16 18l7 14M29 18l7 14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">${shape}</svg>`;
+}
+
 /** Marker artwork is generated as SVG so it scales crisply and needs no assets. */
 function markerSvg(kind: CameraKind, color: string, size = 2) {
   const s = 26 * size;
@@ -106,6 +142,10 @@ export interface MapViewProps {
   active: Record<LayerId, boolean>;
   selectedId: string | null;
   onSelect: (point: CameraPoint | null) => void;
+  roadFeatures: RoadConditionFeature[];
+  roadActive: Record<RoadLayerId, boolean>;
+  selectedRoadId: string | null;
+  onRoadSelect: (feature: RoadConditionFeature | null) => void;
   focus: MapFocus | null;
   className?: string;
 }
@@ -115,6 +155,10 @@ export default function MapView({
   active,
   selectedId,
   onSelect,
+  roadFeatures,
+  roadActive,
+  selectedRoadId,
+  onRoadSelect,
   focus,
   className,
 }: MapViewProps) {
@@ -123,19 +167,33 @@ export default function MapView({
   const map = useRef<MlMap | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
   const pointsById = useRef(new Map<string, CameraPoint>());
-  const iso = useRef({ onSelect, t, selectedId });
+  const roadFeaturesById = useRef(new Map<string, RoadConditionFeature>());
+  const iso = useRef({ onSelect, onRoadSelect, t, selectedId, selectedRoadId });
   const [ready, setReady] = useState(false);
   const pointsMap = useMemo(() => new Map(points.map((p) => [p.id, p])), [points]);
+  const roadFeatureMap = useMemo(
+    () => new Map(roadFeatures.map((feature) => [feature.id, feature])),
+    [roadFeatures],
+  );
 
   // Map event handlers are registered once, so keep them pointed at current props.
   useEffect(() => {
-    iso.current = { onSelect, t, selectedId };
+    iso.current = { onSelect, onRoadSelect, t, selectedId, selectedRoadId };
     pointsById.current = pointsMap;
-  }, [onSelect, t, selectedId, pointsMap]);
+    roadFeaturesById.current = roadFeatureMap;
+  }, [onSelect, onRoadSelect, t, selectedId, selectedRoadId, pointsMap, roadFeatureMap]);
 
   const colors = useMemo(() => {
     const resolved = new Map<LayerId, string>();
     for (const layer of LAYERS) resolved.set(layer.id, resolveColor(layer.color, "#17130f"));
+    return resolved;
+  }, []);
+
+  const roadColors = useMemo(() => {
+    const resolved = new Map<RoadLayerId, string>();
+    for (const id of ROAD_LAYER_IDS) {
+      resolved.set(id, cssVar(ROAD_COLOR_VAR[id], "#6b625b"));
+    }
     return resolved;
   }, []);
 
@@ -146,6 +204,18 @@ export default function MapView({
       defs.push({
         id: `mk-${kind}`,
         svg: markerSvg(kind, colors.get(layer?.id ?? "redlight") ?? "#17130f"),
+      });
+    }
+    for (const kind of ROAD_KINDS) {
+      const layer: RoadLayerId =
+        kind === "traffic-incident"
+          ? "incidents"
+          : kind === "flood-alert" || kind === "faulty-traffic-light"
+            ? "hazards"
+            : "roadworks";
+      defs.push({
+        id: `road-mk-${kind}`,
+        svg: roadMarkerSvg(kind, roadColors.get(layer) ?? "#6b625b"),
       });
     }
     await Promise.all(
@@ -163,7 +233,57 @@ export default function MapView({
       ),
     );
 
-      for (const layer of LAYERS) {
+    const empty = { type: "FeatureCollection" as const, features: [] };
+    const free = cssVar("--c-traffic-free", "#26815b");
+    const moderate = cssVar("--c-traffic-moderate", "#b37a18");
+    const heavy = cssVar("--c-traffic-heavy", "#c65b3e");
+    const severe = cssVar("--c-traffic-severe", "#9f3340");
+    const unknown = cssVar("--c-traffic-unknown", "#78857e");
+    const speedColor: maplibregl.ExpressionSpecification = [
+      "case",
+      ["<=", ["coalesce", ["get", "speedBand"], 0], 0],
+      unknown,
+      ["<=", ["get", "speedBand"], 2],
+      severe,
+      ["<=", ["get", "speedBand"], 4],
+      heavy,
+      ["<=", ["get", "speedBand"], 6],
+      moderate,
+      free,
+    ];
+
+    // Speed links are deliberately dashed: LTA publishes only start/end
+    // coordinates, so these are schematic indicators rather than road geometry.
+    mapInstance.addSource("road-traffic-speed", { type: "geojson", data: empty });
+    mapInstance.addLayer({
+      id: "road-traffic-speed-casing",
+      type: "line",
+      source: "road-traffic-speed",
+      paint: {
+        "line-color": "#ffffff",
+        "line-opacity": 0.82,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 3.5, 16, 7],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-traffic-speed-line",
+      type: "line",
+      source: "road-traffic-speed",
+      paint: {
+        "line-color": speedColor,
+        "line-opacity": 0.88,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.5, 16, 4],
+        "line-dasharray": [2, 1.25],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-traffic-speed-hit",
+      type: "line",
+      source: "road-traffic-speed",
+      paint: { "line-color": "#000000", "line-opacity": 0.01, "line-width": 14 },
+    });
+
+    for (const layer of LAYERS) {
         const lid = layer.id;
         const color = colors.get(lid) ?? "#17130f";
         mapInstance.addSource(lid, {
@@ -173,7 +293,6 @@ export default function MapView({
           clusterRadius: 46,
           clusterMaxZoom: 14,
         });
-        const empty = { type: "FeatureCollection" as const, features: [] };
         mapInstance.addSource(`${lid}-selected`, { type: "geojson", data: empty });
 
         mapInstance.addLayer({
@@ -282,6 +401,7 @@ export default function MapView({
           const p = f && pointsById.current.get(String(f.properties?.id));
           if (p) {
             popup.current?.remove();
+            iso.current.onRoadSelect(null);
             iso.current.onSelect(p);
           }
         });
@@ -304,19 +424,127 @@ export default function MapView({
         mapInstance.on("mouseleave", `${lid}-clusters`, () => {
           mapInstance.getCanvas().style.cursor = "";
         });
+    }
+
+    for (const id of ROAD_POINT_LAYERS) {
+      const source = `road-${id}`;
+      mapInstance.addSource(source, { type: "geojson", data: empty });
+      mapInstance.addLayer({
+        id: `${source}-points`,
+        type: "symbol",
+        source,
+        layout: {
+          "icon-image": ["concat", "road-mk-", ["get", "kind"]],
+          "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.52, 16, 0.72],
+          "icon-allow-overlap": false,
+          "icon-anchor": "center",
+        },
+      });
+      mapInstance.addLayer({
+        id: `${source}-hit`,
+        type: "circle",
+        source,
+        paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
+      });
+    }
+
+    mapInstance.addSource("road-selected", { type: "geojson", data: empty });
+    mapInstance.addLayer({
+      id: "road-selected-line",
+      type: "line",
+      source: "road-selected",
+      filter: ["==", ["geometry-type"], "LineString"],
+      paint: {
+        "line-color": "#17130f",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 5, 16, 8],
+        "line-opacity": 0.78,
+        "line-dasharray": [2, 1.25],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-selected-point",
+      type: "circle",
+      source: "road-selected",
+      filter: ["==", ["geometry-type"], "Point"],
+      paint: {
+        "circle-radius": 18,
+        "circle-color": "transparent",
+        "circle-stroke-width": 2.5,
+        "circle-stroke-color": "#17130f",
+      },
+    });
+
+    const roadPointInteractive = ROAD_POINT_LAYERS.flatMap((id) => [
+      `road-${id}-hit`,
+      `road-${id}-points`,
+    ]);
+    const roadInteractive = ["road-traffic-speed-hit", ...roadPointInteractive];
+    const cameraInteractive = LAYERS.flatMap((layer) => [
+      `${layer.id}-hit`,
+      `${layer.id}-points`,
+      `${layer.id}-clusters`,
+    ]);
+
+    const showRoadPopup = (event: maplibregl.MapLayerMouseEvent) => {
+      const rendered = event.features?.[0];
+      const feature = rendered && roadFeaturesById.current.get(String(rendered.properties?.id));
+      if (!feature || feature.id === iso.current.selectedRoadId) return;
+      const el = document.createElement("div");
+      el.style.cssText = "padding:7px 10px;font-size:12px;line-height:1.3;max-width:250px";
+      const kind = document.createElement("div");
+      kind.style.cssText = "font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#63736b";
+      kind.textContent = iso.current.t(`road.kind.${feature.properties.kind}` as StringKey);
+      const title = document.createElement("div");
+      title.style.cssText = "font-weight:600;margin-top:2px";
+      title.textContent = feature.properties.title;
+      el.append(kind, title);
+      popup.current?.remove();
+      popup.current = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 16,
+        maxWidth: "270px",
+      })
+        .setLngLat(event.lngLat)
+        .setDOMContent(el)
+        .addTo(mapInstance);
+    };
+
+    mapInstance.on("mouseenter", roadInteractive, () => {
+      mapInstance.getCanvas().style.cursor = "pointer";
+    });
+    mapInstance.on("mouseleave", roadInteractive, () => {
+      mapInstance.getCanvas().style.cursor = "";
+      popup.current?.remove();
+    });
+    mapInstance.on("mousemove", roadInteractive, showRoadPopup);
+    mapInstance.on("click", roadInteractive, (event) => {
+      // Camera points are more precise than the wide schematic speed hit area.
+      if (mapInstance.queryRenderedFeatures(event.point, { layers: cameraInteractive }).length > 0) return;
+      const rendered = event.features?.[0];
+      const feature = rendered && roadFeaturesById.current.get(String(rendered.properties?.id));
+      if (feature) {
+        popup.current?.remove();
+        iso.current.onSelect(null);
+        iso.current.onRoadSelect(feature);
       }
+    });
 
-      mapInstance.on("click", (e) => {
-        const layers = LAYERS.flatMap((l) => [`${l.id}-hit`, `${l.id}-points`, `${l.id}-clusters`]);
-        const hits = mapInstance.queryRenderedFeatures(e.point, { layers });
-        if (hits.length === 0) iso.current.onSelect(null);
+    mapInstance.on("click", (event) => {
+      const hits = mapInstance.queryRenderedFeatures(event.point, {
+        layers: [...cameraInteractive, ...roadInteractive],
       });
+      if (hits.length === 0) {
+        iso.current.onSelect(null);
+        iso.current.onRoadSelect(null);
+      }
+    });
 
-      mapInstance.on("error", () => {
-        /* tile/network errors are surfaced through the layer status, not console spam */
-      });
+    mapInstance.on("error", () => {
+      /* tile/network errors are surfaced through the layer status, not console spam */
+    });
 
-      setReady(true);
+    setReady(true);
   }
 
   /* ---------------- map lifecycle ---------------- */
@@ -401,6 +629,26 @@ export default function MapView({
     }
   }, [points, ready]);
 
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance || !ready) return;
+    for (const layer of ROAD_LAYER_IDS) {
+      const source = mapInstance.getSource(`road-${layer}`) as maplibregl.GeoJSONSource | undefined;
+      if (!source) continue;
+      source.setData({
+        type: "FeatureCollection",
+        features: roadFeatures
+          .filter((feature) => feature.properties.layer === layer && feature.geometry !== null)
+          .map((feature) => ({
+            type: "Feature" as const,
+            id: feature.id,
+            geometry: feature.geometry!,
+            properties: { ...feature.properties, id: feature.id },
+          })),
+      });
+    }
+  }, [roadFeatures, ready]);
+
   /* ---------------- layer visibility ---------------- */
   useEffect(() => {
     const mapInstance = map.current;
@@ -413,6 +661,25 @@ export default function MapView({
       }
     }
   }, [active, ready]);
+
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance || !ready) return;
+    for (const layer of ROAD_LAYER_IDS) {
+      const visible = roadActive[layer] ? "visible" : "none";
+      const layerIds =
+        layer === "traffic-speed"
+          ? [
+              "road-traffic-speed-casing",
+              "road-traffic-speed-line",
+              "road-traffic-speed-hit",
+            ]
+          : [`road-${layer}-points`, `road-${layer}-hit`];
+      for (const id of layerIds) {
+        if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, "visibility", visible);
+      }
+    }
+  }, [roadActive, ready]);
 
   /* ---------------- selection ---------------- */
   useEffect(() => {
@@ -437,6 +704,28 @@ export default function MapView({
       });
     }
   }, [selectedId, pointsMap, ready]);
+
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance || !ready) return;
+    const source = mapInstance.getSource("road-selected") as maplibregl.GeoJSONSource | undefined;
+    if (!source) return;
+    const feature = selectedRoadId ? roadFeatureMap.get(selectedRoadId) : undefined;
+    source.setData({
+      type: "FeatureCollection",
+      features:
+        feature?.geometry && roadActive[feature.properties.layer]
+          ? [
+              {
+                type: "Feature",
+                id: feature.id,
+                geometry: feature.geometry,
+                properties: { ...feature.properties, id: feature.id },
+              },
+            ]
+          : [],
+    });
+  }, [selectedRoadId, roadFeatureMap, roadActive, ready]);
 
   /* ---------------- fly to ---------------- */
   useEffect(() => {

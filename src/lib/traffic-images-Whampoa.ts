@@ -1,11 +1,4 @@
-import type {
-  CameraKind,
-  CameraPoint,
-  CamerasResponse,
-  LayerId,
-  TrafficCamera,
-  TrafficImagesResponse,
-} from "./types";
+import type { CameraKind, LayerId, TrafficCamera } from "./types";
 
 /**
  * Official camera names published by LTA on OneMotoring, keyed by CameraID.
@@ -58,52 +51,6 @@ export function normaliseDataGovTraffic(json: unknown): {
     });
   }
   return { feedTimestamp: item?.timestamp, cameras };
-}
-
-/** Build the map point for one camera currently published by Traffic Images. */
-export function trafficCameraPoint(camera: TrafficCamera): CameraPoint {
-  return {
-    id: `snapshot:${camera.cameraId}`,
-    layer: "snapshot",
-    kind: "snapshot",
-    lat: camera.lat,
-    lng: camera.lng,
-    road: camera.name,
-    ref: camera.cameraId,
-    live: true,
-  };
-}
-
-/**
- * Traffic Images is the sole source of snapshot markers. Camera locations in
- * the static/base payload deliberately do not participate: that prevents the
- * unrelated LTA Road Camera asset inventory from being presented as cameras
- * with public images, and lets a static Pages build follow feed changes live.
- */
-export function withCurrentTrafficCameras(
-  base: CamerasResponse,
-  traffic: TrafficImagesResponse | null,
-): CamerasResponse {
-  const snapshotPoints = (traffic?.cameras ?? []).map(trafficCameraPoint);
-  const points = [...base.points.filter((point) => point.layer !== "snapshot"), ...snapshotPoints];
-  const layers = base.layers.map((layer) => {
-    if (layer.id !== "snapshot") return layer;
-    const sources = layer.sources.filter(
-      (source) =>
-        !source.url.includes("d_147f4906651f5b32925dfe6560296161") &&
-        !source.name.includes("Road Camera locations"),
-    );
-    return {
-      ...layer,
-      sources,
-      count: snapshotPoints.length,
-      liveCount: snapshotPoints.length,
-      status: traffic?.status ?? "ok",
-      error: traffic?.error,
-      kinds: { snapshot: snapshotPoints.length },
-    };
-  });
-  return { ...base, layers, points };
 }
 
 /** Point shape used by the LayerInfo.kinds map. */
