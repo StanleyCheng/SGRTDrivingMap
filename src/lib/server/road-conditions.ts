@@ -2,6 +2,7 @@ import type {
   RoadConditionFeature,
   RoadConditionKind,
   RoadConditionLayerInfo,
+  RoadConditionSourceId,
   RoadConditionSourceStatus,
   RoadConditionsResponse,
   RoadLayerId,
@@ -14,9 +15,10 @@ const DATAMALL_BASE = "https://datamall2.mytransport.sg/ltaodataservice";
 const DATAMALL_DOCS =
   "https://datamall.lta.gov.sg/content/dam/datamall/datasets/LTA_DataMall_API_User_Guide.pdf";
 const PAGE_SIZE = 500;
-// TrafficSpeedBands v4 currently exceeds 50,000 links. Keep a defensive cap,
-// but leave enough room to exhaust the documented 500-row pages.
-const MAX_PAGES = 250;
+// TrafficSpeedBands v4 published 143,787 links on 22 Sep 2026 and grows over
+// time, so the cap must stay well clear of the real feed — it exists only to
+// stop an upstream runaway, not as a working limit.
+const MAX_PAGES = 320;
 
 // Wide enough to include Singapore's outlying road links while rejecting
 // zeroes, swapped coordinates, and unrelated global positions.
@@ -31,8 +33,9 @@ type RawRecord = Record<string, unknown>;
 type Normaliser = (records: RawRecord[]) => RoadConditionFeature[];
 
 interface SourceDefinition {
-  id: RoadConditionKind;
-  layer: RoadLayerId;
+  id: RoadConditionSourceId;
+  /** Every driver-facing layer this feed contributes features to. */
+  layers: RoadLayerId[];
   name: string;
   pathname: string;
   ttlMs: number;
@@ -113,10 +116,23 @@ export function normaliseLtaDate(value: unknown): string | undefined {
   return input;
 }
 
-/** LTA v4 speed links are straight start/end segments, not full road geometries. */
+/**
+ * LTA v4 speed links are straight start/end segments, not full road geometries.
+ *
+ * Only expressway links (RoadCategory 1) are drawn. The feed publishes 143,787
+ * monitored links island-wide; colouring all of them is ~8.3 MB of GeoJSON on
+ * every poll and is unreadable on a map, while the 2,598 expressway links are
+ * ~0.8 MB and are what a driver actually needs. The full upstream total is
+ * reported as `upstreamCount` so the panel can disclose the coverage instead of
+ * implying the rest are broken.
+ */
+const DRAWN_SPEED_CATEGORY = "1";
+
 export function normaliseTrafficSpeedBands(records: RawRecord[]): RoadConditionFeature[] {
   const features: RoadConditionFeature[] = [];
   for (const record of records) {
+    const roadCategory = asText(record.RoadCategory);
+    if (roadCategory !== DRAWN_SPEED_CATEGORY) continue;
     const start = point(asNumber(record.StartLon), asNumber(record.StartLat));
     const end = point(asNumber(record.EndLon), asNumber(record.EndLat));
     const road = asText(record.RoadName) || "Unnamed road";
@@ -158,6 +174,59 @@ export function normaliseTrafficSpeedBands(records: RawRecord[]): RoadConditionF
   return features;
 }
 
+/**
+ * LTA's TrafficIncidents "Type" values → our layer + kind.
+ *
+ * The one feed legitimately feeds three of the four driver-facing layers: heavy
+ * traffic is live congestion (speed layer), road works carry the direction and
+ * lane detail the permit register lacks (roadworks layer), and the rest are the
+ * alert icons (incidents layer). Anything undocumented is kept as `incident`
+ * rather than dropped.
+ */
+function incidentCategory(type: string): { kind: RoadConditionKind; layer: RoadLayerId } {
+  const value = type.toLowerCase();
+  if (/accident|collision/.test(value)) return { kind: "accident", layer: "incidents" };
+  if (/breakdown|stalled|stall\b/.test(value)) return { kind: "breakdown", layer: "incidents" };
+  if (/divert|diversion|road ?clos|lane ?clos|closed/.test(value))
+    return { kind: "diversion", layer: "incidents" };
+  if (/obstruct|block|fallen|tree|debris|spill|fire/.test(value))
+    return { kind: "obstruction", layer: "incidents" };
+  if (/road ? ?works?|works|construction|maintenance|resurfac/.test(value))
+    return { kind: "live-roadwork", layer: "roadworks" };
+  if (/heavy ?traffic|congest|slow|queue/.test(value))
+    return { kind: "congestion-alert", layer: "traffic-speed" };
+  return { kind: "incident", layer: "incidents" };
+}
+
+/**
+ * LTA writes incidents as: `(22/9)13:34 Road Works on AYE (towards MCE) after
+ * Tuas West Rd. Avoid lane 1.` Everything below is read out of that official
+ * wording — the route, direction, landmark and lane are never inferred from
+ * coordinates or invented.
+ */
+function parseIncidentMessage(message: string) {
+  const reported = /^\s*\((\d{1,2}\/\d{1,2})\)\s*(\d{1,2}:\d{2})\s*/.exec(message);
+  const reportedText = reported ? `(${reported[1]}) ${reported[2]}` : undefined;
+  const body = reported ? message.slice(reported[0].length).trim() : message.trim();
+
+  const withDirection = /\bon\s+(.+?)\s*\(\s*towards?\s+([^)]*?)\s*\)/i.exec(body);
+  const withoutDirection = /\bon\s+([^().]+?)(?=\s+(?:after|before|at|between|near)\b|[.,]|$)/i.exec(body);
+  const route = (withDirection?.[1] ?? withoutDirection?.[1] ?? "").trim() || undefined;
+  const direction = withDirection?.[2]?.trim()
+    ? `towards ${withDirection[2].trim()}`
+    : undefined;
+
+  const landmarkMatch = /\b(after|before|at|between|near)\s+(.+?)(?=\.\s*(?:Avoid\b|$)|\s*$)/i.exec(body);
+  const landmark = landmarkMatch
+    ? `${landmarkMatch[1]} ${landmarkMatch[2]}`.replace(/\s+/g, " ").trim()
+    : undefined;
+
+  const laneMatch = /avoid\s+lane\s+([^.;]+)/i.exec(body);
+  const lane = laneMatch ? laneMatch[1].replace(/\s+/g, " ").trim() : undefined;
+
+  return { reportedText, body, route, direction, landmark, lane };
+}
+
 export function normaliseTrafficIncidents(records: RawRecord[]): RoadConditionFeature[] {
   const features: RoadConditionFeature[] = [];
   for (const record of records) {
@@ -173,16 +242,24 @@ export function normaliseTrafficIncidents(records: RawRecord[]): RoadConditionFe
     // TrafficIncidents has no documented upstream ID. Derive a stable
     // fingerprint solely from the four fields in the official schema.
     const sourceId = hash(identity);
+    const { kind, layer } = incidentCategory(type);
+    const parsed = parseIncidentMessage(description);
     features.push({
       type: "Feature",
-      id: featureId("traffic-incident", sourceId, description),
+      id: featureId(kind, sourceId, description),
       geometry: coordinates ? { type: "Point", coordinates } : null,
       properties: {
-        layer: "incidents",
-        kind: "traffic-incident",
-        title: type,
+        layer,
+        kind,
+        title: parsed.body || type,
         description: description || undefined,
         sourceId,
+        route: parsed.route,
+        direction: parsed.direction,
+        landmark: parsed.landmark,
+        lane: parsed.lane,
+        reportedText: parsed.reportedText,
+        agency: "LTA",
       },
     });
   }
@@ -309,6 +386,9 @@ function normaliseRoadEvents(
         title: kind === "road-work" ? `Road works · ${road}` : `Planned opening · ${road}`,
         description: asText(record.Other) || undefined,
         road,
+        // The permit register publishes a road name only — no direction, lane or
+        // site geometry. Those fields are left unset rather than inferred.
+        route: road,
         sourceId,
         startsAt: normaliseLtaDate(record.StartDate),
         endsAt: normaliseLtaDate(record.EndDate),
@@ -325,7 +405,7 @@ export const normaliseRoadOpenings = (records: RawRecord[]) =>
 const SOURCES: SourceDefinition[] = [
   {
     id: "speed-band",
-    layer: "traffic-speed",
+    layers: ["traffic-speed"],
     name: "LTA Traffic Speed Bands v4",
     pathname: "v4/TrafficSpeedBands",
     ttlMs: 5 * 60 * 1000,
@@ -334,7 +414,8 @@ const SOURCES: SourceDefinition[] = [
   },
   {
     id: "traffic-incident",
-    layer: "incidents",
+    // One feed, three driver-facing layers — see incidentCategory().
+    layers: ["traffic-speed", "incidents", "roadworks"],
     name: "LTA Traffic Incidents",
     pathname: "TrafficIncidents",
     ttlMs: 2 * 60 * 1000,
@@ -343,7 +424,7 @@ const SOURCES: SourceDefinition[] = [
   },
   {
     id: "flood-alert",
-    layer: "hazards",
+    layers: ["hazards"],
     name: "PUB Flood Alerts via LTA DataMall",
     pathname: "PubFloodAlerts",
     ttlMs: 3 * 60 * 1000,
@@ -352,7 +433,7 @@ const SOURCES: SourceDefinition[] = [
   },
   {
     id: "faulty-traffic-light",
-    layer: "hazards",
+    layers: ["hazards"],
     name: "LTA Faulty Traffic Lights",
     pathname: "FaultyTrafficLights",
     ttlMs: 2 * 60 * 1000,
@@ -361,7 +442,7 @@ const SOURCES: SourceDefinition[] = [
   },
   {
     id: "road-work",
-    layer: "roadworks",
+    layers: ["roadworks"],
     name: "LTA Approved Road Works",
     pathname: "RoadWorks",
     ttlMs: 24 * 60 * 60 * 1000,
@@ -370,7 +451,7 @@ const SOURCES: SourceDefinition[] = [
   },
   {
     id: "road-opening",
-    layer: "roadworks",
+    layers: ["roadworks"],
     name: "LTA Planned Road Openings",
     pathname: "RoadOpenings",
     ttlMs: 24 * 60 * 60 * 1000,
@@ -422,7 +503,7 @@ async function fetchAll(pathname: string): Promise<RawRecord[]> {
   throw new DataMallError(`LTA DataMall response exceeded ${MAX_PAGES * PAGE_SIZE} records`);
 }
 
-const inflight = new Map<RoadConditionKind, Promise<CacheEntry<RawRecord[]>>>();
+const inflight = new Map<RoadConditionSourceId, Promise<CacheEntry<RawRecord[]>>>();
 
 function refreshSource(definition: SourceDefinition) {
   const running = inflight.get(definition.id);
@@ -487,6 +568,8 @@ async function loadSource(definition: SourceDefinition): Promise<LoadedSource> {
       status,
       count: features.length,
       mappedCount,
+      // Records LTA published, before this app's drawing scope was applied.
+      upstreamCount: usableEntry?.data.length,
       fetchedAt: entry?.generatedAt,
       error,
     },
@@ -517,14 +600,20 @@ function aggregateStatus(statuses: SourceStatus[]): SourceStatus {
 }
 
 function buildLayer(id: RoadLayerId, loaded: LoadedSource[]): RoadConditionLayerInfo {
-  const relevant = loaded.filter((result) => SOURCES.find((source) => source.id === result.source.id)?.layer === id);
+  // Counts come from each feature's own layer; feed attribution comes from the
+  // declared feed→layer map, so a layer with zero current records (hazards)
+  // still reports the health of the feeds that would populate it.
+  const contributes = (result: LoadedSource) =>
+    SOURCES.find((source) => source.id === result.source.id)?.layers.includes(id) ?? false;
+  const features = loaded.flatMap((result) => result.features).filter((feature) => feature.properties.layer === id);
+  const relevant = loaded.filter(contributes);
   const errors = relevant.flatMap((result) =>
     result.source.error ? [`${result.source.name}: ${result.source.error}`] : [],
   );
   return {
     id,
-    count: relevant.reduce((total, result) => total + result.source.count, 0),
-    mappedCount: relevant.reduce((total, result) => total + result.source.mappedCount, 0),
+    count: features.length,
+    mappedCount: features.filter((feature) => feature.geometry !== null).length,
     status: aggregateStatus(relevant.map((result) => result.source.status)),
     sources: relevant.map((result) => result.source),
     error: errors.length ? [...new Set(errors)].join("; ") : undefined,
@@ -552,7 +641,10 @@ export async function getRoadConditions(): Promise<RoadConditionsResponse> {
     status,
     fromCache: loaded.some((source) => source.fromCache),
     layers,
-    features: loaded.flatMap((source) => source.features),
+    // Only features that can actually be drawn are sent: the layer counts above
+    // stay exact, but the ~9.8k permit records with no published coordinates no
+    // longer cost 4 MB of JSON on every poll.
+    features: loaded.flatMap((source) => source.features).filter((feature) => feature.geometry !== null),
     error: errors.length ? [...new Set(errors)].join("; ") : undefined,
   };
 }

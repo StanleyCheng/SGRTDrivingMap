@@ -86,10 +86,21 @@ export type RoadLayerId = "traffic-speed" | "incidents" | "hazards" | "roadworks
 /** One upstream feed represented within a road-condition layer. */
 export type RoadConditionKind =
   | "speed-band"
-  | "traffic-incident"
+  /** LTA "Heavy Traffic" alerts — live congestion, mapped to the speed layer. */
+  | "congestion-alert"
+  | "accident"
+  | "breakdown"
+  | "obstruction"
+  | "diversion"
+  /** Any TrafficIncidents type LTA does not document — kept, never dropped. */
+  | "incident"
+  /** Live road works reported through TrafficIncidents (carries direction + lane). */
+  | "live-roadwork"
   | "flood-alert"
   | "faulty-traffic-light"
+  /** Approved road works permit register. */
   | "road-work"
+  /** Planned road opening schedule. */
   | "road-opening";
 
 export type RoadPosition = [lng: number, lat: number];
@@ -125,16 +136,38 @@ export interface RoadConditionFeature {
     roadCategory?: string;
     radiusKm?: number;
     agency?: string;
+    /** Route the alert affects, parsed from LTA's own message wording. */
+    route?: string;
+    /** Travel direction, e.g. "towards Tuas" — LTA wording, not inferred. */
+    direction?: string;
+    /** Landmark reference LTA gives, e.g. "after Mandai Rd". */
+    landmark?: string;
+    /** Affected lane, only where LTA publishes it ("Avoid lane 2"). */
+    lane?: string;
+    /** LTA's own timestamp text, shown verbatim rather than date-parsed. */
+    reportedText?: string;
   };
 }
 
+/** One upstream DataMall feed. Distinct from a feature kind: after routing, the
+ * TrafficIncidents feed emits several different kinds across three layers. */
+export type RoadConditionSourceId =
+  | "speed-band"
+  | "traffic-incident"
+  | "flood-alert"
+  | "faulty-traffic-light"
+  | "road-work"
+  | "road-opening";
+
 export interface RoadConditionSourceStatus {
-  id: RoadConditionKind;
+  id: RoadConditionSourceId;
   name: string;
   url: string;
   status: SourceStatus;
   count: number;
   mappedCount: number;
+  /** Records the upstream feed published, before any drawing scope was applied. */
+  upstreamCount?: number;
   /** ISO timestamp of the most recent successful fetch. */
   fetchedAt?: string;
   error?: string;

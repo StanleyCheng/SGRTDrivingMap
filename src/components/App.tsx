@@ -31,13 +31,20 @@ const MapView = dynamic(() => import("@/components/MapView"), {
   loading: () => <div className="skeleton h-full w-full rounded-none" />,
 });
 
-const ALL_ON: Record<LayerId, boolean> = { redlight: true, speed: true, snapshot: true };
+// Layers 1 and 2 (live congestion, and accident/breakdown alerts) are the
+// default view per the agreed layer priority; everything else starts off.
 const ROAD_DEFAULTS: Record<RoadLayerId, boolean> = {
   "traffic-speed": true,
   incidents: true,
-  hazards: true,
+  hazards: false,
   roadworks: false,
 };
+// The four live road layers need the DataMall key, so a static build has none of
+// them. Defaulting every camera layer off as well would open on an empty map,
+// so in static mode the camera layers carry the default view instead.
+const ALL_ON: Record<LayerId, boolean> = STATIC_MODE
+  ? { redlight: true, speed: true, snapshot: true }
+  : { redlight: false, speed: false, snapshot: false };
 const TRAFFIC_POLL_MS = 60_000;
 const ROAD_POLL_MS = 60_000;
 
@@ -53,6 +60,7 @@ export default function App() {
   const [roadError, setRoadError] = useState<string | null>(null);
   const [active, setActive] = useState<Record<LayerId, boolean>>(ALL_ON);
   const [roadActive, setRoadActive] = useState<Record<RoadLayerId, boolean>>(ROAD_DEFAULTS);
+  const [incidentRoute, setIncidentRoute] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedRoadId, setSelectedRoadId] = useState<string | null>(null);
   const [focus, setFocus] = useState<MapFocus | null>(null);
@@ -276,6 +284,7 @@ export default function App() {
         onSelect={select}
         roadFeatures={roadConditions?.features ?? []}
         roadActive={roadActive}
+        incidentRoute={incidentRoute}
         selectedRoadId={selectedRoadId}
         onRoadSelect={selectRoad}
         focus={focus}
@@ -306,6 +315,8 @@ export default function App() {
           roadConditions={roadConditions}
           roadActive={roadActive}
           onRoadToggle={toggleRoadLayer}
+          incidentRoute={incidentRoute}
+          onIncidentRouteChange={setIncidentRoute}
           roadLoading={roadLoading}
           roadError={roadError}
           onRoadRetry={() => {

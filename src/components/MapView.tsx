@@ -70,9 +70,16 @@ const KIND_SHAPES: Record<CameraKind, "dot" | "diamond" | "square"> = {
 };
 
 const ROAD_LAYER_IDS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
-const ROAD_POINT_LAYERS: RoadLayerId[] = ["incidents", "hazards", "roadworks"];
+// Layer 1 carries both the green→red segments and LTA's "Heavy Traffic" alerts.
+const ROAD_POINT_LAYERS: RoadLayerId[] = ["traffic-speed", "incidents", "hazards", "roadworks"];
 const ROAD_KINDS: Exclude<RoadConditionKind, "speed-band">[] = [
-  "traffic-incident",
+  "congestion-alert",
+  "accident",
+  "breakdown",
+  "obstruction",
+  "diversion",
+  "incident",
+  "live-roadwork",
   "flood-alert",
   "faulty-traffic-light",
   "road-work",
@@ -86,15 +93,32 @@ const ROAD_COLOR_VAR: Record<RoadLayerId, string> = {
   roadworks: "--c-roadworks",
 };
 
+/**
+ * One alert glyph per incident category, so an accident, a breakdown, a blocked
+ * lane and a diversion never look alike on the map.
+ */
+const ALERT_GLYPHS: Record<Exclude<RoadConditionKind, "speed-band">, string> = {
+  // Congestion: three shrinking bars, the standard "traffic" mark.
+  "congestion-alert": `<circle cx="26" cy="26" r="22" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M15 19h22M17 26h18M21 33h10" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
+  accident: `<path d="M26 5 49 45H3Z" fill="COLOR" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M26 18v13" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><circle cx="26" cy="38" r="2.6" fill="#fff"/>`,
+  // Breakdown: wrench.
+  breakdown: `<rect x="5" y="7" width="42" height="38" rx="8" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M32 16a8 8 0 0 0-9.6 10.4L14 34.6 17.4 38l8.2-8.3A8 8 0 0 0 36 20l-4.4 4.4-3-3Z" fill="#fff"/>`,
+  // Blocked: a stopped bar in an octagon.
+  obstruction: `<path d="M17 5h18l12 12v18L35 47H17L5 35V17Z" fill="COLOR" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><rect x="15" y="23" width="22" height="7" rx="3.5" fill="#fff"/>`,
+  diversion: `<rect x="5" y="7" width="42" height="38" rx="8" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M16 34h11a6 6 0 0 0 0-12h-2" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round"/><path d="M27 17l-5 5 5 5" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  incident: `<circle cx="26" cy="26" r="22" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M26 14v15" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/><circle cx="26" cy="36" r="2.6" fill="#fff"/>`,
+  // Live road works: cone row plus a direction chevron.
+  "live-roadwork": `<rect x="5" y="7" width="42" height="38" rx="8" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M18 36l6-18 6 18Z" fill="#fff"/><path d="M14 40h24" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M36 20v10M36 20l-4 4M36 20l4 4" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`,
+  "flood-alert": `<path d="M26 4 48 26 26 48 4 26Z" fill="COLOR" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M17 30c4 0 4-3 8-3s4 3 8 3 4-3 8-3" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M20 21c3-5 6-8 6-8s3 3 6 8a6 6 0 0 1-12 0Z" fill="#fff"/>`,
+  "faulty-traffic-light": `<path d="M26 4 48 26 26 48 4 26Z" fill="COLOR" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><rect x="20" y="13" width="12" height="26" rx="5" fill="#fff"/><circle cx="26" cy="20" r="3" fill="COLOR"/><circle cx="26" cy="27" r="3" fill="COLOR" opacity=".7"/><circle cx="26" cy="34" r="3" fill="COLOR" opacity=".4"/>`,
+  // Permit register: a calendar, because only the dates are published.
+  "road-work": `<rect x="6" y="8" width="40" height="34" rx="7" fill="COLOR" stroke="#fff" stroke-width="4"/><rect x="13" y="20" width="26" height="16" rx="2.5" fill="#fff"/><path d="M13 26h26M19 16v6M33 16v6" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`,
+  // Planned opening: barrier lifting into an up arrow.
+  "road-opening": `<rect x="6" y="8" width="40" height="34" rx="7" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M26 34V19M26 19l-6 6M26 19l6 6" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 38h22" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>`,
+};
+
 function roadMarkerSvg(kind: Exclude<RoadConditionKind, "speed-band">, color: string) {
-  const shape =
-    kind === "traffic-incident"
-      ? `<path d="M26 7 47 45H5Z" fill="${color}" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M26 19v12" stroke="#fff" stroke-width="4" stroke-linecap="round"/><circle cx="26" cy="38" r="2.5" fill="#fff"/>`
-      : kind === "flood-alert"
-        ? `<path d="M26 4 48 26 26 48 4 26Z" fill="${color}" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><path d="M17 30c4 0 4-3 8-3s4 3 8 3 4-3 8-3" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M20 21c3-5 6-8 6-8s3 3 6 8a6 6 0 0 1-12 0Z" fill="#fff"/>`
-        : kind === "faulty-traffic-light"
-          ? `<path d="M26 4 48 26 26 48 4 26Z" fill="${color}" stroke="#fff" stroke-width="4" stroke-linejoin="round"/><rect x="20" y="13" width="12" height="26" rx="5" fill="#fff"/><circle cx="26" cy="20" r="3" fill="${color}"/><circle cx="26" cy="27" r="3" fill="${color}" opacity=".7"/><circle cx="26" cy="34" r="3" fill="${color}" opacity=".4"/>`
-          : `<rect x="6" y="8" width="40" height="34" rx="7" fill="${color}" stroke="#fff" stroke-width="4"/><path d="M13 18h26M16 18l7 14M29 18l7 14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>`;
+  const shape = ALERT_GLYPHS[kind].replaceAll("COLOR", color);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">${shape}</svg>`;
 }
 
@@ -144,6 +168,8 @@ export interface MapViewProps {
   onSelect: (point: CameraPoint | null) => void;
   roadFeatures: RoadConditionFeature[];
   roadActive: Record<RoadLayerId, boolean>;
+  /** Restrict incident alert icons to one route (null = every route). */
+  incidentRoute: string | null;
   selectedRoadId: string | null;
   onRoadSelect: (feature: RoadConditionFeature | null) => void;
   focus: MapFocus | null;
@@ -157,6 +183,7 @@ export default function MapView({
   onSelect,
   roadFeatures,
   roadActive,
+  incidentRoute,
   selectedRoadId,
   onRoadSelect,
   focus,
@@ -208,11 +235,13 @@ export default function MapView({
     }
     for (const kind of ROAD_KINDS) {
       const layer: RoadLayerId =
-        kind === "traffic-incident"
-          ? "incidents"
-          : kind === "flood-alert" || kind === "faulty-traffic-light"
-            ? "hazards"
-            : "roadworks";
+        kind === "flood-alert" || kind === "faulty-traffic-light"
+          ? "hazards"
+          : kind === "road-work" || kind === "road-opening" || kind === "live-roadwork"
+            ? "roadworks"
+            : kind === "congestion-alert"
+              ? "traffic-speed"
+              : "incidents";
       defs.push({
         id: `road-mk-${kind}`,
         svg: roadMarkerSvg(kind, roadColors.get(layer) ?? "#6b625b"),
@@ -428,7 +457,10 @@ export default function MapView({
 
     for (const id of ROAD_POINT_LAYERS) {
       const source = `road-${id}`;
-      mapInstance.addSource(source, { type: "geojson", data: empty });
+      // Layer 1 already owns this source for its speed segments.
+      if (!mapInstance.getSource(source)) {
+        mapInstance.addSource(source, { type: "geojson", data: empty });
+      }
       mapInstance.addLayer({
         id: `${source}-points`,
         type: "symbol",
@@ -639,6 +671,14 @@ export default function MapView({
         type: "FeatureCollection",
         features: roadFeatures
           .filter((feature) => feature.properties.layer === layer && feature.geometry !== null)
+          // Route filter: LTA publishes the affected route in its own message
+          // wording, so this narrows real route attribution rather than guessing.
+          .filter(
+            (feature) =>
+              layer !== "incidents" ||
+              !incidentRoute ||
+              feature.properties.route === incidentRoute,
+          )
           .map((feature) => ({
             type: "Feature" as const,
             id: feature.id,
@@ -647,7 +687,7 @@ export default function MapView({
           })),
       });
     }
-  }, [roadFeatures, ready]);
+  }, [roadFeatures, incidentRoute, ready]);
 
   /* ---------------- layer visibility ---------------- */
   useEffect(() => {
@@ -673,6 +713,7 @@ export default function MapView({
               "road-traffic-speed-casing",
               "road-traffic-speed-line",
               "road-traffic-speed-hit",
+              "road-traffic-speed-points",
             ]
           : [`road-${layer}-points`, `road-${layer}-hit`];
       for (const id of layerIds) {

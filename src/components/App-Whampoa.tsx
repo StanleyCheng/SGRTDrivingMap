@@ -262,6 +262,7 @@ export default function App() {
         onSelect={select}
         roadFeatures={roadConditions?.features ?? []}
         roadActive={roadActive}
+        incidentRoute={null}
         selectedRoadId={selectedRoadId}
         onRoadSelect={selectRoad}
         focus={focus}
@@ -292,6 +293,8 @@ export default function App() {
           roadConditions={roadConditions}
           roadActive={roadActive}
           onRoadToggle={toggleRoadLayer}
+          incidentRoute={null}
+          onIncidentRouteChange={() => {}}
           roadLoading={roadLoading}
           roadError={roadError}
           onRoadRetry={() => {

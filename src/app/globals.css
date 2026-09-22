@@ -175,6 +175,107 @@ body {
   border-color: color-mix(in srgb, var(--c-snapshot) 15%, transparent);
 }
 
+/* The four live road-condition layers lead the list, each tinted by its colour. */
+.atlas-layer[data-layer="traffic-speed"] {
+  --layer-tint: color-mix(in srgb, var(--c-traffic) 13%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-traffic) 20%, transparent);
+}
+
+.atlas-layer[data-layer="incidents"] {
+  --layer-tint: color-mix(in srgb, var(--c-incident) 13%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-incident) 20%, transparent);
+}
+
+.atlas-layer[data-layer="hazards"] {
+  --layer-tint: color-mix(in srgb, var(--c-hazard) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-hazard) 20%, transparent);
+}
+
+.atlas-layer[data-layer="roadworks"] {
+  --layer-tint: color-mix(in srgb, var(--c-roadworks) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--c-roadworks) 20%, transparent);
+}
+
+/* ---------- phone layer rail: one coloured icon per layer + popup ---------- */
+.atlas-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 12px 10px;
+}
+
+.atlas-rail-icon {
+  position: relative;
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--layer-color) 26%, var(--line));
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--layer-color) 9%, var(--surface));
+  color: var(--layer-color);
+  transition: background 160ms, border-color 160ms, transform 120ms;
+}
+
+.atlas-rail-icon[data-active="true"] {
+  border-color: var(--layer-color);
+  background: color-mix(in srgb, var(--layer-color) 20%, var(--surface));
+}
+
+.atlas-rail-icon[aria-pressed="true"] {
+  transform: translateY(-1px);
+}
+
+.atlas-rail-glyph {
+  display: grid;
+  place-items: center;
+}
+
+.atlas-rail-count {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  min-width: 20px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.atlas-rail-icon[data-error="true"] {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--err) 55%, var(--line));
+}
+
+.atlas-rail-icon[data-error="true"] .atlas-rail-count {
+  color: var(--err);
+  border-color: color-mix(in srgb, var(--err) 45%, var(--line));
+}
+
+.atlas-rail-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--layer-color);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.atlas-rail-popup {
+  position: relative;
+  margin: 0 12px 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  box-shadow: 0 10px 24px -18px rgb(23 19 15 / 45%);
+}
+
 .atlas-layer[data-active="false"] {
   background: var(--surface);
   border-color: var(--line);

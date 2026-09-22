@@ -77,7 +77,16 @@ export function RoadConditionDetail({
       : null;
 
   const rows = [
-    properties.road ? { label: t("road.detail.road"), value: properties.road } : null,
+    properties.route ? { label: t("road.detail.route"), value: properties.route } : null,
+    properties.direction ? { label: t("road.detail.direction"), value: properties.direction } : null,
+    properties.landmark ? { label: t("road.detail.landmark"), value: properties.landmark } : null,
+    properties.lane ? { label: t("road.detail.lane"), value: properties.lane } : null,
+    properties.reportedText
+      ? { label: t("road.detail.reported"), value: properties.reportedText }
+      : null,
+    properties.road && properties.road !== properties.route
+      ? { label: t("road.detail.road"), value: properties.road }
+      : null,
     properties.description
       ? { label: t("road.detail.description"), value: properties.description }
       : null,
@@ -86,7 +95,7 @@ export function RoadConditionDetail({
       ? { label: t("road.detail.severity"), value: properties.severity }
       : null,
     period ? { label: t("road.detail.period"), value: period } : null,
-    properties.startsAt && !properties.endsAt
+    properties.startsAt && !properties.endsAt && !properties.reportedText
       ? { label: t("road.detail.reported"), value: formatDateTime(properties.startsAt, lang) }
       : null,
     { label: t(geometry?.type === "LineString" ? "road.detail.segment" : "road.detail.coords"), value: coordinates, mono: true },

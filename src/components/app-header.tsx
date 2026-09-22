@@ -42,6 +42,7 @@ function SourcesIcon() {
 export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
   const { lang, setLang, t } = useI18n();
   const [clock, setClock] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     const fmt = new Intl.DateTimeFormat("en-GB", {
@@ -57,8 +58,37 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
     return () => clearInterval(id);
   }, []);
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        aria-expanded={false}
+        aria-label={t("header.expand")}
+        data-tip={t("header.expand")}
+        className={`tip tip-right panel atlas-header inline-flex items-center p-1.5 ${className}`}
+      >
+        <LogoMark />
+      </button>
+    );
+  }
+
   return (
-    <header className={`panel atlas-header flex min-w-0 max-w-full items-center gap-3 px-3 py-2.5 sm:gap-5 sm:px-4 ${className}`}>
+    <header
+      // The bar itself retracts; the controls inside opt out via stopPropagation.
+      role="button"
+      tabIndex={0}
+      aria-expanded
+      aria-label={t("header.collapse")}
+      data-tip={t("header.collapse")}
+      onClick={() => setCollapsed(true)}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        setCollapsed(true);
+      }}
+      className={`tip tip-right panel atlas-header flex min-w-0 max-w-full cursor-pointer items-center gap-3 px-3 py-2.5 sm:gap-5 sm:px-4 ${className}`}
+    >
       <div className="flex min-w-0 items-center gap-2.5">
         <LogoMark />
         <div className="min-w-0">
@@ -69,7 +99,10 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
         </div>
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
+      <div
+        className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="atlas-clock hidden flex-col gap-1 lg:flex">
           <span className="label text-muted">SGT</span>
           <span className="num text-[13px] font-medium text-ink-2">{clock}</span>
