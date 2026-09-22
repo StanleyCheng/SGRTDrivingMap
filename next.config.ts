@@ -6,7 +6,10 @@ import type { NextConfig } from "next";
  * straight from the keyless data.gov.sg mirror (see src/lib/client-data.ts).
  */
 const staticExport = process.env.STATIC_EXPORT === "1";
-const basePath = process.env.BASE_PATH ?? "/SGRTDrivingMap";
+// GitHub Pages serves a project site under a path equal to the repository name,
+// so this default must match the repo. The deploy workflow overrides it with
+// `actions/configure-pages` output, which keeps the two from drifting apart.
+const basePath = process.env.BASE_PATH ?? "/SGRTTrafficInfo";
 
 const nextConfig: NextConfig = {
   ...(staticExport && {

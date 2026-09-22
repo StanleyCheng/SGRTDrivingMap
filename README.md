@@ -5,8 +5,8 @@ cameras, every camera currently published by LTA's live Traffic Images feed, and
 live driver overlays — congestion, incidents, hazards, roadworks, parking, ERP, EV charging,
 safety zones and expressway advisories.
 
-- **Live site (GitHub Pages):** https://stanleycheng.github.io/SGRTDrivingMap/
-- **Repository:** https://github.com/StanleyCheng/SGRTDrivingMap
+- **Live site (GitHub Pages):** https://stanleycheng.github.io/SGRTTrafficInfo/
+- **Repository:** https://github.com/StanleyCheng/SGRTTrafficInfo
 - **Build report & decisions:** [`doc/2026-09-21-design.md`](doc/2026-09-21-design.md)
 - **Live layer feature notes:** [`doc/2026-09-22.md`](doc/2026-09-22.md)
 - **UI design system:** [`DESIGN.md`](DESIGN.md)
@@ -137,7 +137,7 @@ back to OpenStreetMap automatically.
 publishes `out/` to GitHub Pages on every push to `main`. The static build bakes the camera
 datasets into `public/data/cameras.json` from `src/data/cameras-seed.json`, temporarily moves
 `src/app/api` aside (route handlers are incompatible with `output: 'export'`) and sets the
-`/SGRTDrivingMap` base path — see `scripts/build-static.mjs` and `next.config.ts`.
+`/SGRTTrafficInfo` base path — see `scripts/build-static.mjs` and `next.config.ts`.
 
 To refresh the deployed camera data, re-run a real fetch and commit the new snapshot:
 

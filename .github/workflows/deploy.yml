@@ -29,10 +29,15 @@ jobs:
         run: npm ci
       - name: Verify source
         run: npm run verify
-      - name: Static export build
-        run: npm run build:static
       - name: Setup Pages
+        id: pages
         uses: actions/configure-pages@v5
+      - name: Static export build
+        # The base path comes from Pages itself, so renaming the repository can
+        # never leave the deploy serving assets from a path that no longer exists.
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+        run: npm run build:static
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
