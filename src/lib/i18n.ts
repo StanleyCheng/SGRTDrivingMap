@@ -1,8 +1,8 @@
 import type { Lang } from "./types";
 
 const en = {
-  "app.title": "新加坡實時交通資訊",
-  "app.short": "新加坡交通資訊",
+  "app.title": "SG Real-Time Traffic Info",
+  "app.short": "SG Traffic Info",
   "app.subtitle": "Official red-light, speed & traffic cameras on one map",
   "app.metaDescription":
     "Live map of Singapore red-light cameras, speed enforcement cameras and LTA traffic snapshot cameras, from official government open data.",
