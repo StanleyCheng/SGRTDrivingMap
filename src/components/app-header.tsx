@@ -65,8 +65,10 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
         onClick={() => setCollapsed(false)}
         aria-expanded={false}
         aria-label={t("header.expand")}
-        data-tip={t("header.expand")}
-        className={`tip tip-right panel atlas-header inline-flex items-center p-1.5 ${className}`}
+        // Same padding as the expanded bar, so the app icon stays in exactly the
+        // same place when the bar retracts to it. No tooltip: this sits against
+        // the top of the window, where a hover bubble would be clipped off-screen.
+        className={`panel atlas-header inline-flex items-center px-3 py-2.5 sm:px-4 ${className}`}
       >
         <LogoMark />
       </button>
@@ -80,14 +82,13 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
       tabIndex={0}
       aria-expanded
       aria-label={t("header.collapse")}
-      data-tip={t("header.collapse")}
       onClick={() => setCollapsed(true)}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         event.preventDefault();
         setCollapsed(true);
       }}
-      className={`tip tip-right panel atlas-header flex min-w-0 max-w-full cursor-pointer items-center gap-3 px-3 py-2.5 sm:gap-5 sm:px-4 ${className}`}
+      className={`panel atlas-header flex min-w-0 max-w-full cursor-pointer items-center gap-3 px-3 py-2.5 sm:gap-5 sm:px-4 ${className}`}
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <LogoMark />
@@ -138,7 +139,9 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
           type="button"
           onClick={onOpenSources}
           aria-label={t("src.title")}
-          className="tip tip-right atlas-icon-button"
+          // `tip-below`: the bar is flush with the top of the window, so a tooltip
+          // above this button would be clipped off-screen.
+          className="tip tip-below atlas-icon-button"
           data-tip={t("src.title")}
         >
           <SourcesIcon />

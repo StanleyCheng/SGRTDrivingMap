@@ -133,6 +133,13 @@ function LayerRow({
  * Phone rail
  * ------------------------------------------------------------------ */
 
+/**
+ * Rail layers whose tap opens a panel rather than toggling, because they have
+ * something to set: the incident route filter, the parking vehicle type, and the
+ * EV connector / power / availability filters. Every other layer is a single tap.
+ */
+const RAIL_OPTION_LAYERS: (LayerId | RoadLayerId)[] = ["incidents", "parking", "ev"];
+
 interface RailEntry {
   id: LayerId | RoadLayerId;
   color: string;
@@ -214,6 +221,14 @@ function MobileLayerRail({
   const entries = [...roadEntries, ...cameraEntries];
   const openEntry = entries.find((entry) => entry.id === open) ?? null;
   const isRoad = (id: LayerId | RoadLayerId) => ROAD_LAYER_IDS.includes(id as RoadLayerId);
+  const switchLayer = (id: LayerId | RoadLayerId) => {
+    if (isRoad(id)) onRoadToggle(id as RoadLayerId);
+    else onToggle(id as LayerId);
+  };
+  // A layer only needs a panel if it has something to set. Everything else is on
+  // or off, and the tooltip already explains what it does, so a tap toggles it
+  // rather than making the user open a card and hit the same switch inside.
+  const hasOptions = (id: LayerId | RoadLayerId) => RAIL_OPTION_LAYERS.includes(id);
 
   return (
     <>
@@ -304,8 +319,19 @@ function MobileLayerRail({
                 data-error={entry.disabled}
                 aria-pressed={entry.on}
                 aria-label={`${entry.name}${entry.count != null ? ` · ${entry.count}` : ""}`}
-                data-tip={entry.disabled ? t("status.error") : entry.name}
-                onClick={() => setOpen(open === entry.id ? null : entry.id)}
+                aria-haspopup={entry.disabled || hasOptions(entry.id) ? "dialog" : undefined}
+                data-tip={entry.disabled ? t("status.error") : `${entry.name} — ${entry.note}`}
+                title={entry.disabled ? t("status.error") : entry.name}
+                onClick={() => {
+                  // Feed errors keep their panel (it holds the reason and Retry);
+                  // layers with settings open theirs; the rest toggle in one tap.
+                  if (entry.disabled || hasOptions(entry.id)) {
+                    setOpen(open === entry.id ? null : entry.id);
+                    return;
+                  }
+                  setOpen(null);
+                  switchLayer(entry.id);
+                }}
                 className="tip atlas-rail-icon"
                 style={layerStyle(entry.color)}
               >

@@ -270,7 +270,8 @@ export default function App() {
       />
 
       {/* header */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-center p-2 sm:justify-start sm:p-4">
+      {/* Left-aligned so the retracted bar keeps the app icon exactly where it was. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-start p-2 sm:p-4">
         <AppHeader onOpenSources={() => setSourcesOpen(true)} className="pointer-events-auto" />
       </div>
 

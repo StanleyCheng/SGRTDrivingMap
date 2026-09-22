@@ -59,15 +59,25 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
 - Desktop: map fills the viewport; mint header top-left, layer panel under it, detail card
   top-right, MapLibre controls bottom-right, freshness chip bottom-centre.
 - Phone: header pinned to the top, the layer control is a **rail of coloured icons docked at the
-  bottom of the window**. Each rail icon carries `aria-label`, a `.tip` tooltip and its live count;
-  tapping one opens that layer's own popup (`role="dialog"`) above the rail and retracts the rail
-  while a detail card is open. The rail never lists all twelve rows as a wall of text.
-- The top bar is retractable: clicking it collapses the whole header to the app icon alone, and
-  clicking again restores it. Controls inside the bar stop propagation so they keep working.
+  bottom of the window**. Each rail icon carries `aria-label`, a `.tip` tooltip (name plus the
+  layer's description) and its live count. A tap **toggles** a layer that has nothing to configure
+  — no card, and no switch inside a card; a layer with settings (incident route, parking vehicle
+  type, EV connector/power/availability) opens its own popup (`role="dialog"`) instead, and a
+  failing feed opens one holding the reason and Retry. The rail retracts while a detail card is
+  open, and never lists all twelve rows as a wall of text.
+- The top bar is retractable: clicking it collapses the whole header down to the app icon, which
+  keeps **exactly** its expanded position (same left inset and glyph), and clicking again restores
+  it. The bar itself carries no tooltip — it sits against the window edge, where a bubble would be
+  clipped to a stray sliver; controls inside it use `.tip-below` so their bubbles open downwards.
+  Controls inside the bar stop propagation so they keep working.
 - Floating cards use `.panel` (96% ivory surface + 16 px blur + hairline + shadow) and one
   of two radii: card `20px`, control `12px`. Inset layer cards use `14px`. Cards never position themselves — the parent
   owns layout so the map can inset them.
-- Touch targets ≥ 40 px; icon-only buttons carry `aria-label` **and** a `.tip` tooltip.
+- Touch targets ≥ 40 px; icon-only buttons carry `aria-label` **and** a `.tip` tooltip. A tooltip
+  must never be clipped: `.tip` places it above, `.tip-right` aligns it to the right edge,
+  `.tip-below` opens it downwards (required near the top of the window) and rail tooltips wrap
+  instead of running off a phone screen. An information-only surface (a legend, a corridor card)
+  never justifies a modal step before the switch a user already committed to.
 - Layer cards keep their own tinted fill, a white-backed glyph, large count, and a
   40 px switch target. An inactive card returns to ivory; state is also exposed to
   assistive technology. Metadata can wrap without pushing a switch out of the card.

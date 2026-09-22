@@ -51,11 +51,12 @@ function findChrome() {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function cdpConnect(port) {
-  const version = await (async () => {
+  // Wait for the browser we just spawned to answer on its own debug port.
+  await (async () => {
     for (let i = 0; i < 60; i++) {
       try {
         const res = await fetch(`http://127.0.0.1:${port}/json/version`);
-        if (res.ok) return res.json();
+        if (res.ok) return;
       } catch {
         /* not up yet */
       }
@@ -579,20 +580,65 @@ async function main() {
       staticMode ? railIcons === 3 : railIcons >= 9,
       `icons=${railIcons}`,
     );
-    await evaluate(
-      `(() => { const b = document.querySelector('.atlas-rail-icon'); if (b) b.click(); return true; })()`,
+    // A tap on a layer with nothing to configure switches it: no card, and no
+    // switch inside a card. The tooltip carries the description instead.
+    const railSimple = staticMode ? "redlight" : "hazards";
+    const railBefore = await evaluate(
+      `document.querySelector('.atlas-rail-icon[data-layer="${railSimple}"]')?.getAttribute('aria-pressed')`,
     );
-    await sleep(500);
-    const popup = await evaluate(`(() => {
-      const el = document.querySelector('.atlas-rail-popup');
-      if (!el) return null;
-      return { text: el.innerText.slice(0, 120), hasSwitch: Boolean(el.querySelector('[role=switch]')) };
+    await evaluate(
+      `document.querySelector('.atlas-rail-icon[data-layer="${railSimple}"]')?.click()`,
+    );
+    await sleep(800);
+    const railAfter = await evaluate(`(() => {
+      const b = document.querySelector('.atlas-rail-icon[data-layer="${railSimple}"]');
+      return {
+        pressed: b ? b.getAttribute('aria-pressed') : null,
+        popup: Boolean(document.querySelector('.atlas-rail-popup')),
+        tip: b ? b.getAttribute('data-tip') : null,
+      };
     })()`);
     check(
-      "tapping a rail icon pops that layer's content",
-      Boolean(popup && popup.hasSwitch),
-      popup ? popup.text.replace(/\n/g, " / ") : "no popup",
+      "rail tap toggles a layer with nothing to configure",
+      railBefore !== railAfter.pressed && !railAfter.popup,
+      `${railSimple}: ${railBefore} -> ${railAfter.pressed}, popup=${railAfter.popup}`,
     );
+    check(
+      "rail tooltip describes the layer",
+      Boolean(railAfter.tip && railAfter.tip.length > 12 && railAfter.tip.includes("—")),
+      railAfter.tip ?? "no tooltip",
+    );
+
+    // Layers that do have settings still open their own panel.
+    if (staticMode) {
+      console.log("SKIP  rail option-panel check — the static build's rail has no layer with settings");
+    } else {
+      await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="parking"]')?.click()`);
+      await sleep(800);
+      const popupBefore = await evaluate(`(() => {
+        const el = document.querySelector('.atlas-rail-popup');
+        if (!el) return null;
+        return { hasSwitch: Boolean(el.querySelector('[role=switch]')), text: el.innerText.slice(0, 80) };
+      })()`);
+      // Switching it on from that panel must reveal the layer's own controls.
+      await evaluate(`document.querySelector('.atlas-rail-popup [role=switch]')?.click()`);
+      await waitFor(`Boolean(document.querySelector('.atlas-rail-popup select'))`, 30000);
+      const popupAfter = await evaluate(`(() => {
+        const el = document.querySelector('.atlas-rail-popup');
+        const select = el ? el.querySelector('select') : null;
+        return { hasSelect: Boolean(select), options: select ? select.options.length : 0, text: el ? el.innerText.slice(0, 80) : "" };
+      })()`);
+      check(
+        "rail tap opens options for a layer that has them",
+        Boolean(
+          popupBefore &&
+            popupBefore.hasSwitch &&
+            popupAfter.hasSelect &&
+            popupAfter.options > 1,
+        ),
+        `${popupBefore?.text.replace(/\n/g, " / ") ?? "no popup"} -> select options=${popupAfter.options}`,
+      );
+    }
     const shotRail = await send("Page.captureScreenshot", { format: "png" });
     writeFileSync(path.join(OUT, "mobile-rail.png"), Buffer.from(shotRail.data, "base64"));
     const shot3 = await send("Page.captureScreenshot", { format: "png" });
