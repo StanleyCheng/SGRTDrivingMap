@@ -18,10 +18,11 @@ const instrument = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "新加坡實時交通資訊",
+  title: "SG Real-Time Traffic Info",
   description:
     "Live map of Singapore red-light cameras, speed enforcement cameras and LTA traffic snapshot cameras — official government open data, bilingual EN/繁中.",
-  applicationName: "新加坡實時交通資訊",
+  applicationName: "SG Real-Time Traffic Info",
+  appleWebApp: { title: "SG Traffic Info" },
 };
 
 export const viewport: Viewport = {

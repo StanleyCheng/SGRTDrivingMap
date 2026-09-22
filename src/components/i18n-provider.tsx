@@ -23,12 +23,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     const initial: Lang = fromUrl === "zh" || fromUrl === "en" ? fromUrl : stored === "zh" ? "zh" : "en";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the persisted language after hydration
     setLangState(initial);
-    document.documentElement.lang = initial === "zh" ? "zh-Hant" : "en";
   }, []);
+
+  // Keep the document title in step with the toggle, so the browser tab (and the
+  // name the OS shows for a home-screen shortcut) matches the language on screen.
+  useEffect(() => {
+    document.documentElement.lang = lang === "zh" ? "zh-Hant" : "en";
+    document.title = translate(lang, "app.title");
+  }, [lang]);
 
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
-    document.documentElement.lang = next === "zh" ? "zh-Hant" : "en";
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
