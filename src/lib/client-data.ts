@@ -81,14 +81,44 @@ function unavailableRoadConditions(error: string): RoadConditionsResponse {
 
 /**
  * Load live road conditions without ever putting the DataMall key in a browser
- * bundle. GitHub Pages has no server-side proxy, so static builds report the
- * layers as unavailable instead of attempting a credentialed upstream call.
+ * bundle. GitHub Pages has no server-side proxy, so a static build reads the
+ * snapshot baked at build time instead — one file per layer, so only the layers
+ * switched on are downloaded, and reported as a cached copy rather than live.
  */
 export async function loadRoadConditions(
   options: { signal?: AbortSignal; layers?: RoadLayerId[] } = {},
 ): Promise<RoadConditionsResponse> {
   if (STATIC_MODE) {
-    return unavailableRoadConditions("Live road conditions require the server-hosted app");
+    try {
+      const indexResponse = await fetch(`${BASE}/data/road-conditions/index.json`, {
+        signal: options.signal,
+        cache: "no-cache",
+      });
+      if (!indexResponse.ok) throw new Error(`HTTP ${indexResponse.status}`);
+      const index = (await indexResponse.json()) as RoadConditionsResponse;
+      const wanted = options.layers ?? ROAD_LAYER_IDS;
+      const parts = await Promise.all(
+        wanted.map(async (id) => {
+          const response = await fetch(`${BASE}/data/road-conditions/${id}.json`, {
+            signal: options.signal,
+            cache: "no-cache",
+          });
+          if (!response.ok) return [];
+          return ((await response.json()) as { features: RoadConditionsResponse["features"] }).features;
+        }),
+      );
+      return {
+        ...index,
+        // A baked payload is never "live": say so, so the panel shows the cached
+        // copy note next to the snapshot's own timestamp.
+        status: "stale",
+        fromCache: true,
+        features: parts.flat(),
+      };
+    } catch (error) {
+      if ((error as Error).name === "AbortError") throw error;
+      return unavailableRoadConditions((error as Error).message);
+    }
   }
 
   // Layer counts always come back in full; the feature list is narrowed to the

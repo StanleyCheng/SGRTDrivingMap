@@ -218,9 +218,11 @@ async function main() {
       `live=${api.layers.find((l) => l.id === "snapshot")?.liveCount}`,
     );
     check(
-      "live feed loaded from the official source",
-      /Feed updated|live images/i.test(panelText) && !/temporarily unavailable/i.test(panelText),
-      panelText.replace(/\n+/g, " | ").slice(-160),
+      "live feed drives the snapshot layer badge",
+      await evaluate(
+        `(document.querySelector('.atlas-rail-icon[data-layer="snapshot"] .atlas-rail-count')?.textContent ?? "") === "${counts.snapshot}"`,
+      ),
+      `badge vs feed: ${counts.snapshot} cameras`,
     );
     // Every still image must be loadable by the browser from the active app
     // feed (LTA presigned S3 in server mode or data.gov.sg in static mode).
@@ -288,23 +290,22 @@ async function main() {
     );
 
     // 2b. the agreed default view, identical in every build: all nine driver layers
-    //     plus the three camera layers are listed, and only driver layers 1 and 2 are
-    //     on. The static build cannot reach the credentialed feeds, so its driver rows
-    //     say so, but they are still present and controllable.
+    //     plus the three camera layers are listed on the rail, and only driver
+    //     layers 1 and 2 are on.
     const staticMode = mode === "static";
-    await waitFor(`document.querySelectorAll('.atlas-layer').length === 12`, 90000);
-    const layerRows = await evaluate("document.querySelectorAll('.atlas-layer').length");
+    await waitFor(`document.querySelectorAll('.atlas-rail-icon').length === 12`, 90000);
+    const railCount = await evaluate("document.querySelectorAll('.atlas-rail-icon').length");
     check(
       "nine driver layers and three camera layers are listed",
-      layerRows === 12,
-      `rows=${layerRows}${staticMode ? " (static build)" : ""}`,
+      railCount === 12,
+      `icons=${railCount}${staticMode ? " (static build)" : ""}`,
     );
-    const layerState = await evaluate(`(() => {
-      return [...document.querySelectorAll('.atlas-layer')].map((el) => ({
-        layer: el.getAttribute('data-layer'),
-        on: el.querySelector('[role=switch]')?.getAttribute('aria-checked') === 'true',
-      }));
-    })()`);
+    const readLayerState = () =>
+      evaluate(`(() => [...document.querySelectorAll('.atlas-rail-icon')].map((b) => ({
+        layer: b.getAttribute('data-layer'),
+        on: b.getAttribute('aria-pressed') === 'true',
+      })))()`);
+    const layerState = await readLayerState();
     const layersOn = layerState.filter((row) => row.on).map((row) => row.layer);
     check(
       "only the top two layers are on by default (rest off)",
@@ -312,27 +313,32 @@ async function main() {
       "on: " + (layersOn.join(", ") || "none"),
     );
 
-    // 3. layer toggle hides/shows a layer
-    const before = await evaluate(
-      `(() => { const s = [...document.querySelectorAll('[role=switch]')]; return s.map(x => x.getAttribute('aria-checked')).join(','); })()`,
+    // 3. tapping a layer with nothing to configure switches it, on either layout.
+    const toggleProbe = "hazards";
+    const pressedBefore = await evaluate(
+      `document.querySelector('.atlas-rail-icon[data-layer="${toggleProbe}"]')?.getAttribute('aria-pressed')`,
     );
-    await evaluate(`document.querySelectorAll('[role=switch]')[0].click()`);
-    await sleep(500);
-    const after = await evaluate(
-      `(() => { const s = [...document.querySelectorAll('[role=switch]')]; return s.map(x => x.getAttribute('aria-checked')).join(','); })()`,
+    await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="${toggleProbe}"]')?.click()`);
+    await sleep(900);
+    const pressedAfter = await evaluate(
+      `document.querySelector('.atlas-rail-icon[data-layer="${toggleProbe}"]')?.getAttribute('aria-pressed')`,
     );
-    check("layer switch toggles", before !== after, `${before} -> ${after}`);
-    await evaluate(`document.querySelectorAll('[role=switch]')[0].click()`);
-    await sleep(400);
+    check(
+      "layer icon toggles a layer on and off",
+      pressedBefore !== pressedAfter && pressedBefore !== null,
+      `${toggleProbe}: ${pressedBefore} -> ${pressedAfter}`,
+    );
+    await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="${toggleProbe}"]')?.click()`);
+    await sleep(900);
 
     // 4. clicking a marker opens the detail panel (markers are drawn on the canvas,
     //    so centre the map on a known camera, then dispatch a real click).
     //    Requires the dev-only window.__map handle; production builds skip these.
-    //    Camera layers start off by design, so switch them on first.
+    //    Camera layers start off by design, so tap their icons on first.
     await evaluate(`(() => {
       for (const id of ['redlight', 'speed', 'snapshot']) {
-        const sw = document.querySelector('[data-layer="' + id + '"] [role=switch]');
-        if (sw && sw.getAttribute('aria-checked') === 'false') sw.click();
+        const b = document.querySelector('.atlas-rail-icon[data-layer="' + id + '"]');
+        if (b && b.getAttribute('aria-pressed') === 'false') b.click();
       }
       return true;
     })()`);
@@ -452,15 +458,34 @@ async function main() {
       writeFileSync(path.join(OUT, "desktop-live-camera.png"), Buffer.from(shotLive.data, "base64"));
     }
 
+    // 5a. turn a driver layer on the way the UI requires: a layer with settings is
+    //     switched on from its own panel, everything else in one tap.
+    const OPTION_LAYERS = ["incidents", "parking", "ev"];
+    const enableRoadLayer = async (id) => {
+      const pressed = await evaluate(
+        `document.querySelector('.atlas-rail-icon[data-layer="${id}"]')?.getAttribute('aria-pressed')`,
+      );
+      if (pressed === "true") return true;
+      await evaluate(`document.querySelector('.atlas-rail-icon[data-layer="${id}"]')?.click()`);
+      await sleep(600);
+      if (OPTION_LAYERS.includes(id)) {
+        await evaluate(`document.querySelector('.atlas-rail-popup [role=switch]')?.click()`);
+      }
+      for (let i = 0; i < 40; i++) {
+        const on = await evaluate(
+          `document.querySelector('.atlas-rail-icon[data-layer="${id}"]')?.getAttribute('aria-pressed') === 'true'`,
+        );
+        if (on) return true;
+        await sleep(1000);
+      }
+      return false;
+    };
+
     // 5b. the EV connector filter must actually take effect on the map, not just in
     //     the panel. The view is centred on a charger the API reports, and the
     //     assertion is that only the chosen connector is drawn — a property that
     //     holds wherever the map is, unlike a raw marker count.
-    await evaluate(`(() => {
-      const sw = document.querySelector('[data-layer="ev"] [role=switch]');
-      if (sw && sw.getAttribute('aria-checked') === 'false') sw.click();
-      return true;
-    })()`);
+    await enableRoadLayer("ev");
     await sleep(5000);
     // The connector options come from the layer's own features, so they only exist
     // once the EV payload has landed.
@@ -514,11 +539,57 @@ async function main() {
     await evaluate(`(() => {
       const sel = document.querySelector('#filter-ev-plug');
       if (sel) { sel.value = ''; sel.dispatchEvent(new Event('change', { bubbles: true })); }
-      const sw = document.querySelector('[data-layer="ev"] [role=switch]');
-      if (sw && sw.getAttribute('aria-checked') === 'true') sw.click();
       return true;
     })()`);
     await sleep(800);
+
+    // 5c. every driver layer must mark the map when it is switched on — the
+    //     regression this rail was reported for was an ON layer that changed
+    //     nothing. A layer whose badge shows no mapped features is skipped, since
+    //     there would be nothing legitimate to draw.
+    const layerMapLayers = {
+      "traffic-speed": ["road-traffic-speed-line"],
+      incidents: ["road-incidents-points"],
+      hazards: ["road-hazards-points"],
+      roadworks: ["road-roadworks-points"],
+      parking: ["road-parking-points"],
+      erp: ["road-erp-line"],
+      ev: ["road-ev-points"],
+      zones: ["road-zones-fill", "road-zones-pin"],
+      expressway: ["road-expressway-points"],
+    };
+    const marks = {};
+    const skipped = [];
+    const measure = [];
+    // Back to the island view first: queryRenderedFeatures only counts what is in
+    // the viewport, and the EV filter check left the map on a single charger.
+    await evaluate(`(() => { window.__map.jumpTo({ center: [103.8198, 1.3521], zoom: 11.4 }); return true; })()`);
+    await sleep(6000);
+    for (const [id, mapLayers] of Object.entries(layerMapLayers)) {
+      const badge = await evaluate(
+        `document.querySelector('.atlas-rail-icon[data-layer="${id}"] .atlas-rail-count')?.textContent ?? null`,
+      );
+      if (!badge || badge === "0") {
+        skipped.push(id);
+        continue;
+      }
+      await enableRoadLayer(id);
+      measure.push([id, mapLayers]);
+    }
+    // Switch everything on first, then measure: each toggle refetches the whole
+    // set, so the last layer's payload would otherwise still be tiling.
+    await sleep(14000);
+    for (const [id, mapLayers] of measure) {
+      marks[id] = await evaluate(
+        `(() => { const m = window.__map; return ${JSON.stringify(mapLayers)}.reduce((n, x) => n + (m.getLayer(x) ? m.queryRenderedFeatures({ layers: [x] }).length : 0), 0); })()`,
+      );
+    }
+    const notMarked = Object.entries(marks).filter(([, n]) => n === 0).map(([id]) => id);
+    check(
+      "every layer with published geometry marks the map when switched on",
+      Object.keys(marks).length >= 6 && notMarked.length === 0,
+      `rendered ${JSON.stringify(marks)}${skipped.length ? `; no mapped data: ${skipped.join(",")}` : ""}`,
+    );
     }
 
     // 6. sources panel
@@ -532,9 +603,12 @@ async function main() {
       srcText.includes("data.gov.sg") || srcText.includes("Singapore Police Force"),
     );
     if (mode === "static") {
+      // The driver layers now carry a baked DataMall snapshot, so the page legitimately
+      // mentions DataMall. What matters is that the live images are attributed to the
+      // keyless data.gov.sg mirror this build actually reads.
       check(
-        "static build attributes the live feed to data.gov.sg (not DataMall)",
-        !/DataMall/.test(srcText),
+        "static build attributes the live images to data.gov.sg",
+        /data\.gov\.sg/.test(srcText),
         srcText.replace(/\n+/g, " | ").slice(0, 120),
       );
     }

@@ -7,7 +7,6 @@ import { DetailPanel, type DetailImage } from "@/components/detail-panel";
 import { LayerPanel } from "@/components/layer-panel";
 import { RoadConditionDetail } from "@/components/road-condition-detail";
 import { SourcesPanel } from "@/components/sources-panel";
-import { useI18n } from "@/components/i18n-provider";
 import type { MapFocus } from "@/components/MapView";
 import {
   loadCameras,
@@ -59,14 +58,13 @@ const TRAFFIC_POLL_MS = 60_000;
 const ROAD_POLL_MS = 60_000;
 
 export default function App() {
-  const { t } = useI18n();
   const [cameras, setCameras] = useState<CamerasResponse | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [traffic, setTraffic] = useState<TrafficImagesResponse | null>(null);
   const [trafficLoading, setTrafficLoading] = useState(true);
   const [roadConditions, setRoadConditions] = useState<RoadConditionsResponse | null>(null);
-  const [roadLoading, setRoadLoading] = useState(!STATIC_MODE);
+  const [roadLoading, setRoadLoading] = useState(true);
   const [roadError, setRoadError] = useState<string | null>(null);
   const [active, setActive] = useState<Record<LayerId, boolean>>(ALL_ON);
   const [roadActive, setRoadActive] = useState<Record<RoadLayerId, boolean>>(ROAD_DEFAULTS);
@@ -151,17 +149,17 @@ export default function App() {
   }, [activeRoadLayers]);
 
   useEffect(() => {
-    if (STATIC_MODE) return;
     const controller = new AbortController();
     const initialTimer = window.setTimeout(
       () => void loadRoads({ signal: controller.signal }),
       0,
     );
-    const timer = setInterval(() => void loadRoads(), ROAD_POLL_MS);
+    // A static build reads one baked snapshot, so there is nothing to poll.
+    const timer = STATIC_MODE ? null : setInterval(() => void loadRoads(), ROAD_POLL_MS);
     return () => {
       controller.abort();
       clearTimeout(initialTimer);
-      clearInterval(timer);
+      if (timer) clearInterval(timer);
     };
   }, [loadRoads]);
 
@@ -340,9 +338,9 @@ export default function App() {
           onRoadRetry={() => {
             setRoadError(null);
             setRoadLoading(true);
-            void loadRoads({ refresh: true });
+            void loadRoads();
           }}
-          roadAvailable={!STATIC_MODE}
+          roadAvailable
           collapsed={collapsed}
           onCollapsedChange={setCollapsed}
           mobile={mobile}
@@ -381,30 +379,8 @@ export default function App() {
         )}
       </div>
 
-      {/* live-traffic freshness footer */}
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-20 hidden -translate-x-1/2 md:block">
-        <div className="panel pointer-events-auto flex items-center gap-2 px-3 py-1.5">
-          <span
-            className={`inline-block size-1.5 rounded-full ${
-              traffic?.status === "ok" ? "pulse bg-[var(--c-snapshot)]" : "bg-[var(--muted)]"
-            }`}
-          />
-          <span className="label text-muted">{t("traffic.title")}</span>
-          <span className="num text-[11px] text-ink-2">
-            {traffic?.cameras.length ?? 0} {t("common.liveImages")}
-          </span>
-          <span className="text-[11px] text-muted">
-            {traffic?.feedTimestamp
-              ? `${t("traffic.feed")} ${new Date(traffic.feedTimestamp).toLocaleTimeString("en-GB", {
-                  hour12: false,
-                  timeZone: "Asia/Singapore",
-                })} SGT`
-              : traffic?.error
-                ? t("traffic.error")
-                : t("status.loading")}
-          </span>
-        </div>
-      </div>
+      {/* The live-image freshness chip that used to sit here was removed: it covered
+          the map and repeated what the snapshot camera layer already shows. */}
 
       <SourcesPanel
         layers={visibleCameras?.layers ?? null}

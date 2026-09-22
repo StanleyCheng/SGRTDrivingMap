@@ -22,6 +22,42 @@ const nextDevDir = path.join(root, ".next", "dev");
 const nextBin = path.join(root, "node_modules", "next", "dist", "bin", "next");
 const seed = path.join(root, "src", "data", "cameras-seed.json");
 const baked = path.join(root, "public", "data", "cameras.json");
+const roadSeed = path.join(root, "src", "data", "road-conditions-seed.json");
+const roadBaked = path.join(root, "public", "data", "road-conditions");
+
+/**
+ * The driver layers are fed by credentialed LTA DataMall feeds, which a static
+ * host cannot reach. Baking the last payload the server produced keeps those
+ * layers visible on GitHub Pages, split per layer so the browser only downloads
+ * the layers it has switched on, and labelled as a cached copy in the UI.
+ *
+ * Refresh it the same way as the camera snapshot:
+ *   curl -s "http://localhost:3000/api/road-conditions" > src/data/road-conditions-seed.json
+ */
+function bakeRoadConditions() {
+  if (!fs.existsSync(roadSeed)) {
+    console.log("[build-static] no road-conditions seed; driver layers will be empty on Pages");
+    return;
+  }
+  const payload = JSON.parse(fs.readFileSync(roadSeed, "utf8"));
+  const byLayer = new Map();
+  for (const feature of payload.features ?? []) {
+    const id = feature?.properties?.layer;
+    if (!id) continue;
+    if (!byLayer.has(id)) byLayer.set(id, []);
+    byLayer.get(id).push(feature);
+  }
+  fs.rmSync(roadBaked, { recursive: true, force: true });
+  fs.mkdirSync(roadBaked, { recursive: true });
+  for (const [id, features] of byLayer) {
+    fs.writeFileSync(path.join(roadBaked, `${id}.json`), JSON.stringify({ features }));
+  }
+  const { features, ...index } = payload;
+  fs.writeFileSync(path.join(roadBaked, "index.json"), JSON.stringify(index));
+  console.log(
+    `[build-static] baked driver snapshot ${payload.generatedAt} — ${features?.length ?? 0} features across ${byLayer.size} layers`,
+  );
+}
 
 function bakeSnapshot() {
   if (!fs.existsSync(seed)) throw new Error(`missing ${path.relative(root, seed)}`);
@@ -71,6 +107,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 
 bakeSnapshot();
+bakeRoadConditions();
 
 try {
   // `next dev` writes route validators under .next/dev. Because the static build

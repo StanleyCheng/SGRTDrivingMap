@@ -104,13 +104,16 @@ const ROAD_DRAW_LAYERS: Record<RoadLayerId, string[]> = {
   parking: ["road-parking-points", "road-parking-hit"],
   ev: ["road-ev-points", "road-ev-hit"],
   erp: ["road-erp-casing", "road-erp-line", "road-erp-hit"],
-  zones: ["road-zones-fill", "road-zones-outline", "road-zones-hit"],
-  expressway: [],
+  zones: ["road-zones-fill", "road-zones-outline", "road-zones-pin", "road-zones-label", "road-zones-hit"],
+  expressway: ["road-expressway-points", "road-expressway-hit"],
 };
 
-/** School/silver boundaries are a zoom-gated safety overlay, not a base layer. */
-const ZONE_MIN_ZOOM = 14;
-const ERP_MIN_ZOOM = 14;
+/**
+ * Zone names are worth reading only when zoomed in; the coloured boundary itself
+ * is drawn at every zoom, because a safety overlay that appears to do nothing
+ * when it is switched on is worse than a busy one.
+ */
+const ZONE_LABEL_MIN_ZOOM = 13;
 
 /** CSS token per driver-facing layer, resolved to a literal colour for MapLibre. */
 const ROAD_COLOR_VAR: Record<RoadLayerId, string> = ROAD_LAYER_COLOR;
@@ -145,15 +148,21 @@ function roadMarkerSvg(kind: RoadMarkerKind, color: string) {
 }
 
 /**
- * Parking and charging markers: a P and a plug, so the two facilities never look
- * alike. The live number (lots, or free/total points) is drawn beside the icon.
+ * Parking, charging and EMAS sign markers: a P, a plug and a motorway sign, so
+ * the three facilities never look alike. The live number (lots, or free/total
+ * points) is drawn beside the icon.
  */
-const EXTRA_MARKER_GLYPHS: Record<"parking-lot" | "ev-charger", string> = {
+const EXTRA_MARKER_KINDS = ["parking-lot", "ev-charger", "emas-message"] as const;
+type ExtraMarkerKind = (typeof EXTRA_MARKER_KINDS)[number];
+
+const EXTRA_MARKER_GLYPHS: Record<ExtraMarkerKind, string> = {
   "parking-lot": `<rect x="3" y="3" width="46" height="46" rx="12" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M20 38V14h8.4a8 8 0 0 1 0 16H20" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round"/>`,
   "ev-charger": `<rect x="3" y="6" width="46" height="40" rx="12" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M29 13 20 28h8l-5 11" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // EMAS: a gantry sign carrying an advisory.
+  "emas-message": `<rect x="4" y="10" width="44" height="30" rx="7" fill="COLOR" stroke="#fff" stroke-width="4"/><path d="M14 20h24M14 26h18M14 32h10" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M26 40v6" stroke="#fff" stroke-width="4" stroke-linecap="round"/>`,
 };
 
-function extraMarkerSvg(kind: "parking-lot" | "ev-charger", color: string) {
+function extraMarkerSvg(kind: ExtraMarkerKind, color: string) {
   const shape = EXTRA_MARKER_GLYPHS[kind].replaceAll("COLOR", color);
   return `<svg xmlns="http://www.w3.org/2000/svg" width="52" height="52" viewBox="0 0 52 52">${shape}</svg>`;
 }
@@ -309,8 +318,9 @@ export default function MapView({
         svg: roadMarkerSvg(kind, roadColors.get(layer) ?? "#6b625b"),
       });
     }
-    for (const kind of ["parking-lot", "ev-charger"] as const) {
-      const layer: RoadLayerId = kind === "parking-lot" ? "parking" : "ev";
+    for (const kind of EXTRA_MARKER_KINDS) {
+      const layer: RoadLayerId =
+        kind === "parking-lot" ? "parking" : kind === "ev-charger" ? "ev" : "expressway";
       defs.push({
         id: `road-mk-${kind}`,
         svg: extraMarkerSvg(kind, roadColors.get(layer) ?? "#6b625b"),
@@ -339,6 +349,7 @@ export default function MapView({
     const unknown = cssVar("--c-traffic-unknown", "#78857e");
     const erpColor = cssVar("--c-erp", "#8f5a12");
     const zonesColor = cssVar("--c-zones", "#a63f7a");
+    const silverColor = cssVar("--c-silver", "#5a4f9e");
     const inkColor = cssVar("--ink", "#203b36");
     const speedColor: maplibregl.ExpressionSpecification = [
       "case",
@@ -442,6 +453,7 @@ export default function MapView({
             "icon-image": ["concat", "mk-", ["get", "kind"]],
             "icon-size": 0.5,
             "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
             "icon-anchor": "center",
           },
         });
@@ -551,7 +563,10 @@ export default function MapView({
         layout: {
           "icon-image": ["concat", "road-mk-", ["get", "kind"]],
           "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.52, 16, 0.72],
-          "icon-allow-overlap": false,
+          "icon-allow-overlap": true,
+          // Road alerts are sparse and matter: they must never be dropped because a
+          // denser layer (cameras, parking) already reserved that patch of the map.
+          "icon-ignore-placement": true,
           "icon-anchor": "center",
         },
       });
@@ -564,21 +579,26 @@ export default function MapView({
       });
     }
 
-    // 5 · parking: a P marker whose label is the live lot count.
+    // 5 · parking: a P marker whose label is the live lot count. Drawn at every
+    // zoom: switching a layer on must mark the map, not wait for a zoom level.
     mapInstance.addLayer({
       id: "road-parking-points",
       type: "symbol",
       source: "road-parking",
-      minzoom: 12,
       layout: {
         "icon-image": "road-mk-parking-lot",
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.42, 17, 0.6],
+        // Reserve no collision space: parking and charging are dense layers, and
+        // without this the sparser incident and EMAS markers never get placed.
+        "icon-ignore-placement": true,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.3, 12, 0.42, 17, 0.6],
         "icon-allow-overlap": true,
         "text-field": ["to-string", ["coalesce", ["get", "availableLots"], 0]],
         "text-font": ["Open Sans Semibold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 13],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 9, 9, 12, 10, 17, 13],
         "text-anchor": "top",
         "text-offset": [0, 1.2],
+        // Labels declutter themselves; the icons stay put so the coverage reads as
+        // continuous rather than blinking in and out.
         "text-allow-overlap": false,
       },
       paint: { "text-color": inkColor, "text-halo-color": "#ffffff", "text-halo-width": 1.6 },
@@ -587,19 +607,20 @@ export default function MapView({
       id: "road-parking-hit",
       type: "circle",
       source: "road-parking",
-      minzoom: 12,
       paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
     });
 
-    // 7 · EV charging: a plug marker labelled with free/total points.
+    // 7 · EV charging: a plug marker labelled with free/total points, at every zoom.
     mapInstance.addLayer({
       id: "road-ev-points",
       type: "symbol",
       source: "road-ev",
-      minzoom: 12,
       layout: {
         "icon-image": "road-mk-ev-charger",
-        "icon-size": ["interpolate", ["linear"], ["zoom"], 12, 0.42, 17, 0.6],
+        // Reserve no collision space: parking and charging are dense layers, and
+        // without this the sparser incident and EMAS markers never get placed.
+        "icon-ignore-placement": true,
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.3, 12, 0.42, 17, 0.6],
         "icon-allow-overlap": true,
         "text-field": [
           "concat",
@@ -608,7 +629,7 @@ export default function MapView({
           ["to-string", ["coalesce", ["get", "totalPoints"], 0]],
         ],
         "text-font": ["Open Sans Semibold"],
-        "text-size": ["interpolate", ["linear"], ["zoom"], 12, 10, 17, 13],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 9, 9, 12, 10, 17, 13],
         "text-anchor": "top",
         "text-offset": [0, 1.2],
         "text-allow-overlap": false,
@@ -619,31 +640,28 @@ export default function MapView({
       id: "road-ev-hit",
       type: "circle",
       source: "road-ev",
-      minzoom: 12,
       paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
     });
 
-    // 6 · ERP gantry spans. Geometry only at close zoom; the cost summary lives in
-    // the panel, so the map is never carpeted with toll markers.
+    // 6 · ERP gantry spans. Thin at city scale, heavier up close; the cost summary
+    // lives in the panel, so the map never carries a carpet of toll markers.
     mapInstance.addLayer({
       id: "road-erp-casing",
       type: "line",
       source: "road-erp",
-      minzoom: ERP_MIN_ZOOM,
       paint: {
         "line-color": "#ffffff",
         "line-opacity": 0.85,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 4, 17, 8],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 14, 4, 17, 8],
       },
     });
     mapInstance.addLayer({
       id: "road-erp-line",
       type: "line",
       source: "road-erp",
-      minzoom: ERP_MIN_ZOOM,
       paint: {
         "line-color": erpColor,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 2, 17, 5],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.2, 14, 2, 17, 5],
         "line-dasharray": [3, 1.4],
       },
     });
@@ -651,39 +669,93 @@ export default function MapView({
       id: "road-erp-hit",
       type: "line",
       source: "road-erp",
-      minzoom: ERP_MIN_ZOOM,
       paint: { "line-color": "#000000", "line-opacity": 0.01, "line-width": 16 },
     });
 
-    // 8 · school & silver zones — a zoom-gated safety overlay.
+    // 8 · school & silver zones. The colour is always on — a safety overlay that
+    // only appears at zoom 14 looks broken at city scale — and the two zone types
+    // are told apart by colour, not only by the popup.
+    const zoneFill: maplibregl.ExpressionSpecification = [
+      "match",
+      ["get", "kind"],
+      "school-zone",
+      zonesColor,
+      "silver-zone",
+      silverColor,
+      zonesColor,
+    ];
     mapInstance.addLayer({
       id: "road-zones-fill",
       type: "fill",
       source: "road-zones",
-      minzoom: ZONE_MIN_ZOOM,
-      paint: { "fill-color": zonesColor, "fill-opacity": 0.16 },
+      paint: { "fill-color": zoneFill, "fill-opacity": 0.32 },
     });
     mapInstance.addLayer({
       id: "road-zones-outline",
       type: "line",
       source: "road-zones",
-      minzoom: ZONE_MIN_ZOOM,
       paint: {
-        "line-color": zonesColor,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 14, 1.2, 17, 2.4],
+        "line-color": zoneFill,
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1, 14, 1.6, 17, 2.6],
         "line-dasharray": [2, 1.2],
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-zones-label",
+      type: "symbol",
+      source: "road-zones",
+      minzoom: ZONE_LABEL_MIN_ZOOM,
+      layout: {
+        "text-field": ["get", "road"],
+        "text-font": ["Open Sans Semibold"],
+        "text-size": 11,
+        "text-allow-overlap": false,
+      },
+      paint: { "text-color": inkColor, "text-halo-color": "#ffffff", "text-halo-width": 1.6 },
+    });
+    // A school zone is only a couple of pixels across at city scale, so the overlay
+    // also shows one dot per zone until the boundary itself is legible.
+    mapInstance.addLayer({
+      id: "road-zones-pin",
+      type: "circle",
+      source: "road-zones",
+      maxzoom: 13.5,
+      paint: {
+        "circle-color": zoneFill,
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 4, 12, 6.5, 13.5, 9],
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.4,
+        "circle-opacity": 0.92,
       },
     });
     mapInstance.addLayer({
       id: "road-zones-hit",
       type: "fill",
       source: "road-zones",
-      minzoom: ZONE_MIN_ZOOM,
       paint: { "fill-color": "#000000", "fill-opacity": 0.01 },
     });
 
-    // 9 · expressway travel times and EMAS messages intentionally have no map
-    // layer: they are compact corridor cards in the panel, not map clutter.
+    // 9 · the travel-time feed carries no coordinates, so the map marks the EMAS
+    // signboards and the corridor times stay compact cards.
+    mapInstance.addLayer({
+      id: "road-expressway-points",
+      type: "symbol",
+      source: "road-expressway",
+      filter: ["==", ["geometry-type"], "Point"],
+      layout: {
+        "icon-image": "road-mk-emas-message",
+        "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.34, 12, 0.46, 17, 0.64],
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-anchor": "center",
+      },
+    });
+    mapInstance.addLayer({
+      id: "road-expressway-hit",
+      type: "circle",
+      source: "road-expressway",
+      paint: { "circle-radius": 17, "circle-opacity": 0.01, "circle-color": "#000000" },
+    });
 
     mapInstance.addSource("road-selected", { type: "geojson", data: empty });
     mapInstance.addLayer({
@@ -723,8 +795,18 @@ export default function MapView({
       "road-erp-hit",
       "road-zones-hit",
       ...(
-        ["traffic-speed", "incidents", "hazards", "roadworks", "parking", "ev"] as RoadLayerId[]
+        [
+          "traffic-speed",
+          "incidents",
+          "hazards",
+          "roadworks",
+          "parking",
+          "ev",
+          "expressway",
+        ] as RoadLayerId[]
       ).flatMap((id) => [`road-${id}-hit`, `road-${id}-points`]),
+      "road-zones-label",
+      "road-zones-pin",
     ];
     const cameraInteractive = LAYERS.flatMap((layer) => [
       `${layer.id}-hit`,

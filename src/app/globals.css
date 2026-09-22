@@ -41,6 +41,8 @@
   --c-erp: #8f5a12;
   --c-ev: #4a7c1e;
   --c-zones: #a63f7a;
+  /* Silver zones are a distinct purple so the two safety overlays differ on the map. */
+  --c-silver: #5a4f9e;
   --c-expressway: #34497a;
 
   --ok: #15803d;
@@ -234,10 +236,16 @@ body {
 }
 
 /* ---------- phone layer rail: one coloured icon per layer + popup ---------- */
-.atlas-layers-mobile {
+.atlas-layers-bottom {
   max-height: 70vh;
   overflow: hidden;
   border-radius: var(--radius);
+}
+
+/* The desktop strip is the same control as the phone rail, in a small card. */
+.atlas-layers-side {
+  max-height: calc(100dvh - 150px);
+  overflow: hidden;
 }
 
 /* The rail is docked at the bottom of the window on a phone. */
