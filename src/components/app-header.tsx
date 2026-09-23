@@ -92,12 +92,9 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <LogoMark />
-        <div className="min-w-0">
-          <h1 className="atlas-wordmark truncate font-display text-[17px] leading-tight text-ink sm:text-[23px]">{t("app.title")}</h1>
-          <p className="mt-0.5 max-w-[42vw] truncate text-[10px] leading-tight text-ink-2 sm:max-w-none sm:text-[11px]">
-            {t("app.subtitle")}
-          </p>
-        </div>
+        <h1 className="atlas-wordmark min-w-0 truncate font-display text-[17px] leading-tight text-ink sm:text-[23px]">
+          {t("app.title")}
+        </h1>
       </div>
 
       <div
