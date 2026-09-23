@@ -702,15 +702,33 @@ button,
 }
 
 @media (max-width: 639px) {
-  /* Twelve icons must fit a phone without turning the rail into a wall: 46 px
-     tiles give roughly seven per row on a 390 px viewport. */
-  .atlas-rail {
-    gap: 6px;
-    padding: 0 10px 4px;
+  /* On phones the layer control is a single thumb-scrollable dock. Keeping the
+     icons on one line gives the map back the height previously used by two rows. */
+  .atlas-layers-phone .atlas-rail {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 8px 10px max(8px, env(safe-area-inset-bottom));
+    scroll-padding-inline: 10px;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
-  .atlas-rail-icon {
-    width: 46px;
-    height: 46px;
+
+  .atlas-layers-phone .atlas-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  .atlas-layers-phone .atlas-rail > li {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+  }
+
+  .atlas-layers-phone .atlas-rail-icon {
+    width: 48px;
+    height: 48px;
     border-radius: 14px;
   }
 }
@@ -771,7 +789,7 @@ button,
 @media (max-width: 639px) {
   .maplibregl-ctrl-attrib.maplibregl-compact {
     /* Clear the docked phone layer rail so the OSM attribution stays visible. */
-    margin: 0 4px 182px 0 !important;
+    margin: 0 4px 76px 0 !important;
   }
 }
 

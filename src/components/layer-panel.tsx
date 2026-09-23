@@ -32,7 +32,6 @@ export interface LayerPanelProps {
   loading: boolean;
   error: string | null;
   generatedAt: string | null;
-  fromCache: boolean;
   onRetry: () => void;
   roadConditions: RoadConditionsResponse | null;
   roadActive: Record<RoadLayerId, boolean>;
@@ -244,7 +243,9 @@ function LayerRail({
               features={features}
               active={openEntry.on}
               status={
-                openEntry.info && openEntry.info.status !== "ok"
+                openEntry.info &&
+                openEntry.info.status !== "ok" &&
+                openEntry.info.status !== "stale"
                   ? STATUS_STYLE[openEntry.info.status]
                   : null
               }
@@ -291,7 +292,6 @@ export function LayerPanel({
   loading,
   error,
   generatedAt,
-  fromCache,
   onRetry,
   roadConditions,
   roadActive,
@@ -316,14 +316,16 @@ export function LayerPanel({
   const totalPoints = layers?.reduce((n, l) => n + l.count, 0) ?? 0;
   const anyOn = LAYERS.some((def) => active[def.id]) || ROAD_LAYER_IDS.some((id) => roadActive[id]);
   const roadStatus: { key: StringKey; color: string } | null =
-    roadConditions && roadConditions.status !== "ok" ? STATUS_STYLE[roadConditions.status] : null;
+    roadConditions && roadConditions.status !== "ok" && roadConditions.status !== "stale"
+      ? STATUS_STYLE[roadConditions.status]
+      : null;
   const total = roadConditions?.layers.reduce((sum, layer) => sum + layer.count, 0) ?? 0;
   const mapped = roadConditions?.layers.reduce((sum, layer) => sum + layer.mappedCount, 0) ?? 0;
   const layerFilters = filters ?? DEFAULT_LAYER_FILTERS;
   const changeFilters = onFilterChange ?? (() => {});
 
   // Retracted: a sliver of the panel, so the map keeps the space until asked.
-  if (collapsed) {
+  if (collapsed && !mobile) {
     return (
       <div
         className={`panel atlas-header atlas-layers-collapsed flex items-center gap-2 py-1.5 pr-1.5 pl-3 ${className}`}
@@ -367,48 +369,49 @@ export function LayerPanel({
         </p>
       )}
 
-      <header className="flex shrink-0 items-center gap-2.5 px-3 pt-2.5 pb-1">
-        <Mark />
-        <h2 className="label flex-1">{t("panel.title")}</h2>
-        {loading && layers ? (
-          <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
-            {t("status.refreshing")}
-          </span>
-        ) : roadLoading && !roadConditions ? (
-          <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
-            {t("status.loading")}
-          </span>
-        ) : roadStatus ? (
-          <span
-            className="rounded-full px-2 py-0.5 text-[9px] font-semibold"
-            style={{ color: roadStatus.color, background: `color-mix(in srgb, ${roadStatus.color} 11%, transparent)` }}
-          >
-            {t(roadStatus.key)}
-          </span>
-        ) : error ? (
-          // The phone rail has no footer, so a camera-feed failure is announced here.
+      {!mobile && (
+        <header className="flex shrink-0 items-center gap-2.5 px-3 pt-2.5 pb-1">
+          <Mark />
+          <h2 className="label flex-1">{t("panel.title")}</h2>
+          {loading && layers ? (
+            <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
+              {t("status.refreshing")}
+            </span>
+          ) : roadLoading && !roadConditions ? (
+            <span className="rounded-full bg-surface px-2 py-0.5 text-[9px] font-semibold text-muted">
+              {t("status.loading")}
+            </span>
+          ) : roadStatus ? (
+            <span
+              className="rounded-full px-2 py-0.5 text-[9px] font-semibold"
+              style={{ color: roadStatus.color, background: `color-mix(in srgb, ${roadStatus.color} 11%, transparent)` }}
+            >
+              {t(roadStatus.key)}
+            </span>
+          ) : error ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-full px-2 py-0.5 text-[9px] font-semibold text-[var(--err)]"
+              style={{ background: "color-mix(in srgb, var(--err) 12%, transparent)" }}
+            >
+              {t("status.retry")}
+            </button>
+          ) : null}
           <button
             type="button"
-            onClick={onRetry}
-            className="rounded-full px-2 py-0.5 text-[9px] font-semibold text-[var(--err)]"
-            style={{ background: "color-mix(in srgb, var(--err) 12%, transparent)" }}
+            className="tip atlas-icon-button"
+            data-tip={t("panel.collapse")}
+            aria-label={t("panel.collapse")}
+            onClick={() => onCollapsedChange(true)}
           >
-            {t("status.retry")}
+            <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M4 12.5 L10 5.5 L16 12.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M10 13 V17.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+            </svg>
           </button>
-        ) : null}
-        <button
-          type="button"
-          className="tip atlas-icon-button"
-          data-tip={t("panel.collapse")}
-          aria-label={t("panel.collapse")}
-          onClick={() => onCollapsedChange(true)}
-        >
-          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M4 12.5 L10 5.5 L16 12.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M10 13 V17.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-          </svg>
-        </button>
-      </header>
+        </header>
+      )}
 
       <LayerRail
         layers={layers}
@@ -449,7 +452,6 @@ export function LayerPanel({
               : generatedAt
                 ? `${t("status.updated")} ${formatDateTime(generatedAt, lang)}`
                 : ""}
-            {roadConditions?.fromCache || fromCache ? ` · ${t("status.cachedNote")}` : ""}
           </p>
           {(error || roadError || roadConditions?.error) && (
             <p className="font-mono text-[9px] break-words text-[var(--err)]">

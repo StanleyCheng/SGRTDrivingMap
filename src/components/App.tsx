@@ -347,7 +347,6 @@ export default function App() {
           loading={!cameras && !cameraError}
           error={cameraError}
           generatedAt={cameras?.generatedAt ?? null}
-          fromCache={cameras?.fromCache ?? false}
           onRetry={() => {
             setCameraError(null);
             setReloadKey((k) => k + 1);

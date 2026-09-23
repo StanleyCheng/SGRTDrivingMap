@@ -364,8 +364,9 @@ export default function MapView({
       free,
     ];
 
-    // Speed links are deliberately dashed: LTA publishes only start/end
-    // coordinates, so these are schematic indicators rather than road geometry.
+    // LTA publishes only start/end coordinates, so these are schematic
+    // indicators rather than road geometry. Keep them prominent and continuous
+    // so their live speed colours remain easy to scan on the map.
     mapInstance.addSource("road-traffic-speed", { type: "geojson", data: empty });
     mapInstance.addLayer({
       id: "road-traffic-speed-casing",
@@ -374,7 +375,7 @@ export default function MapView({
       paint: {
         "line-color": "#ffffff",
         "line-opacity": 0.82,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 3.5, 16, 7],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 5, 16, 11],
       },
     });
     mapInstance.addLayer({
@@ -384,8 +385,7 @@ export default function MapView({
       paint: {
         "line-color": speedColor,
         "line-opacity": 0.88,
-        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 1.5, 16, 4],
-        "line-dasharray": [2, 1.25],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 9, 3, 16, 8],
       },
     });
     mapInstance.addLayer({
