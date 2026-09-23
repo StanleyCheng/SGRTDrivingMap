@@ -338,7 +338,7 @@ export default function App() {
       {/* layer control — docked bottom-centre on both platforms; it retracts while a
           detail card is open, because the card can grow to the bottom of the window */}
       <div
-        className={`absolute z-30 flex transition-transform duration-300 ease-out ${showDetail ? "translate-y-[110%]" : "translate-y-0"} inset-x-0 bottom-0 justify-center p-2 sm:bottom-4 sm:p-0`}
+        className={`absolute z-30 flex transition-transform duration-300 ease-out ${showDetail ? "translate-y-[110%]" : "translate-y-0"} inset-x-0 bottom-[2px] justify-center p-2 sm:bottom-4 sm:p-0`}
       >
         <LayerPanel
           layers={visibleCameras?.layers ?? null}
