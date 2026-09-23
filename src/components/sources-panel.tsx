@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 import { useI18n } from "@/components/i18n-provider";
+import type { BasemapId } from "@/components/MapView";
 import { STATIC_MODE } from "@/lib/client-data";
 import { formatDate } from "@/lib/format";
 import { LAYERS } from "@/lib/layers";
 import type { CameraKind, LayerInfo } from "@/lib/types";
 
 export interface SourcesPanelProps {
+  basemap?: BasemapId;
   layers: LayerInfo[] | null;
   open: boolean;
   onClose: () => void;
@@ -45,7 +47,7 @@ function ClusterGlyph() {
   );
 }
 
-export function SourcesPanel({ layers, open, onClose }: SourcesPanelProps) {
+export function SourcesPanel({ basemap = "osm", layers, open, onClose }: SourcesPanelProps) {
   const { t, lang } = useI18n();
 
   useEffect(() => {
@@ -189,7 +191,8 @@ export function SourcesPanel({ layers, open, onClose }: SourcesPanelProps) {
             <p className="mt-2 text-[11px] leading-relaxed text-warn">{t("src.staticNote")}</p>
           )}
           <p className="mt-2 text-[10px] text-muted">
-            {t("src.basemap")} · © OpenStreetMap contributors
+            {t("src.basemap")} ·{" "}
+            {t(basemap === "positron" ? "src.basemapPositron" : "src.basemapOsm")}
           </p>
         </div>
       </div>

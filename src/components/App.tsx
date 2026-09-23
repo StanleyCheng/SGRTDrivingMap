@@ -7,7 +7,7 @@ import { DetailPanel, type DetailImage } from "@/components/detail-panel";
 import { LayerPanel } from "@/components/layer-panel";
 import { RoadConditionDetail } from "@/components/road-condition-detail";
 import { SourcesPanel } from "@/components/sources-panel";
-import type { MapFocus } from "@/components/MapView";
+import type { BasemapId, MapFocus } from "@/components/MapView";
 import {
   loadCameras,
   loadRoadConditions,
@@ -56,8 +56,10 @@ const ROAD_DEFAULTS: Record<RoadLayerId, boolean> = {
 const ALL_ON: Record<LayerId, boolean> = { redlight: false, speed: false, snapshot: false };
 const TRAFFIC_POLL_MS = 60_000;
 const ROAD_POLL_MS = 60_000;
+const BASEMAP_STORAGE_KEY = "sgdi.basemap";
 
 export default function App() {
+  const [basemap, setBasemap] = useState<BasemapId>("osm");
   const [cameras, setCameras] = useState<CamerasResponse | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -76,6 +78,31 @@ export default function App() {
   const [filters, setFilters] = useState<LayerFilters>(DEFAULT_LAYER_FILTERS);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
+
+  /* ---------------- basemap preference ---------------- */
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(BASEMAP_STORAGE_KEY);
+      if (stored === "positron") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time persisted preference after hydration
+        setBasemap("positron");
+      }
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  const toggleBasemap = useCallback(() => {
+    setBasemap((current) => {
+      const next: BasemapId = current === "osm" ? "positron" : "osm";
+      try {
+        window.localStorage.setItem(BASEMAP_STORAGE_KEY, next);
+      } catch {
+        /* private mode */
+      }
+      return next;
+    });
+  }, []);
 
   /* ---------------- cameras ---------------- */
   useEffect(() => {
@@ -315,6 +342,7 @@ export default function App() {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-paper">
       <MapView
+        basemap={basemap}
         points={visibleCameras?.points ?? []}
         active={active}
         selectedId={selectedId}
@@ -332,7 +360,12 @@ export default function App() {
       {/* header */}
       {/* Left-aligned so the retracted bar keeps the app icon exactly where it was. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex justify-start p-2 sm:p-4">
-        <AppHeader onOpenSources={() => setSourcesOpen(true)} className="pointer-events-auto" />
+        <AppHeader
+          basemap={basemap}
+          onToggleBasemap={toggleBasemap}
+          onOpenSources={() => setSourcesOpen(true)}
+          className="pointer-events-auto"
+        />
       </div>
 
       {/* layer control — docked bottom-centre on both platforms; it retracts while a
@@ -406,6 +439,7 @@ export default function App() {
           the map and repeated what the snapshot camera layer already shows. */}
 
       <SourcesPanel
+        basemap={basemap}
         layers={visibleCameras?.layers ?? null}
         open={sourcesOpen}
         onClose={() => setSourcesOpen(false)}

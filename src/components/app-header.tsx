@@ -3,9 +3,12 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useI18n } from "@/components/i18n-provider";
+import type { BasemapId } from "@/components/MapView";
 import { LANGS } from "@/lib/i18n";
 
 export interface AppHeaderProps {
+  basemap?: BasemapId;
+  onToggleBasemap?: () => void;
   onOpenSources: () => void;
   className?: string;
 }
@@ -39,7 +42,12 @@ function SourcesIcon() {
   );
 }
 
-export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
+export function AppHeader({
+  basemap = "osm",
+  onToggleBasemap,
+  onOpenSources,
+  className = "",
+}: AppHeaderProps) {
   const { lang, setLang, t } = useI18n();
   const [clock, setClock] = useState("");
   const [collapsed, setCollapsed] = useState(false);
@@ -131,6 +139,25 @@ export function AppHeader({ onOpenSources, className = "" }: AppHeaderProps) {
             </button>
           ))}
         </div>
+
+        {onToggleBasemap && (
+          <button
+            type="button"
+            onClick={onToggleBasemap}
+            aria-pressed={basemap === "positron"}
+            aria-label={
+              basemap === "osm" ? t("map.switchToPositron") : t("map.switchToOsm")
+            }
+            className="tip tip-below atlas-basemap-button"
+            data-basemap={basemap}
+            data-testid="basemap-toggle"
+            data-tip={
+              basemap === "osm" ? t("map.switchToPositron") : t("map.switchToOsm")
+            }
+          >
+            {basemap === "osm" ? t("map.positron") : t("map.osm")}
+          </button>
+        )}
 
         <button
           type="button"

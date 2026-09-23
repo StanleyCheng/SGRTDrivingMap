@@ -16,11 +16,11 @@ import type {
 import { useI18n } from "./i18n-provider";
 
 const TILES = ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"];
+const POSITRON_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 
-/** Optional custom MapLibre style URL; the standard OpenStreetMap tiles are the default. */
-const MAP_STYLE_URL = process.env.NEXT_PUBLIC_MAP_STYLE;
+export type BasemapId = "osm" | "positron";
 
-/** Default and fallback style, so a failed custom style never leaves the map blank. */
+/** Default and fallback style, so a failed Positron request never leaves the map blank. */
 const OSM_STYLE = {
   version: 8 as const,
   glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
@@ -43,10 +43,10 @@ const OSM_STYLE = {
   ],
 };
 
-async function resolveStyle() {
-  if (!MAP_STYLE_URL) return OSM_STYLE;
+async function resolveStyle(basemap: BasemapId) {
+  if (basemap === "osm") return OSM_STYLE;
   try {
-    const res = await fetch(MAP_STYLE_URL, { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(POSITRON_STYLE_URL, { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
       const style = await res.json();
       if (style?.version === 8 && style.layers?.length) return style;
@@ -229,6 +229,7 @@ export interface MapFocus {
 }
 
 export interface MapViewProps {
+  basemap?: BasemapId;
   points: CameraPoint[];
   active: Record<LayerId, boolean>;
   selectedId: string | null;
@@ -246,6 +247,7 @@ export interface MapViewProps {
 }
 
 export default function MapView({
+  basemap = "osm",
   points,
   active,
   selectedId,
@@ -262,6 +264,13 @@ export default function MapView({
   const { t } = useI18n();
   const holder = useRef<HTMLDivElement | null>(null);
   const map = useRef<MlMap | null>(null);
+  const view = useRef({
+    center: SG_CENTER,
+    zoom: SG_ZOOM,
+    bearing: 0,
+    pitch: 0,
+  });
+  const appliedFocusKey = useRef<string | null>(null);
   const popup = useRef<maplibregl.Popup | null>(null);
   const pointsById = useRef(new Map<string, CameraPoint>());
   const roadFeaturesById = useRef(new Map<string, RoadConditionFeature>());
@@ -880,17 +889,23 @@ export default function MapView({
   useEffect(() => {
     const container = holder.current;
     if (!container || map.current) return;
+    // A basemap change creates a fresh style graph. Rebuilding the MapLibre
+    // instance avoids duplicate delegated event handlers while the view ref keeps
+    // the user's exact position and zoom.
+    setReady(false);
     let cancelled = false;
     const resizeObserver = new ResizeObserver(() => map.current?.resize());
     resizeObserver.observe(container);
 
     void (async () => {
-      const style = await resolveStyle();
+      const style = await resolveStyle(basemap);
       if (cancelled || map.current) return;
       const mapInstance = new maplibregl.Map({
         container,
-        center: SG_CENTER,
-        zoom: SG_ZOOM,
+        center: view.current.center,
+        zoom: view.current.zoom,
+        bearing: view.current.bearing,
+        pitch: view.current.pitch,
         minZoom: 9,
         maxZoom: 18,
         attributionControl: { compact: true },
@@ -918,11 +933,21 @@ export default function MapView({
       cancelled = true;
       resizeObserver.disconnect();
       popup.current?.remove();
-      map.current?.remove();
-      map.current = null;
+      const mapInstance = map.current;
+      if (mapInstance) {
+        const center = mapInstance.getCenter();
+        view.current = {
+          center: [center.lng, center.lat],
+          zoom: mapInstance.getZoom(),
+          bearing: mapInstance.getBearing(),
+          pitch: mapInstance.getPitch(),
+        };
+        mapInstance.remove();
+        map.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot map setup; colours resolve once per mount
-  }, []);
+  }, [basemap]);
 
   /* ---------------- data ---------------- */
   useEffect(() => {
@@ -1060,7 +1085,8 @@ export default function MapView({
   /* ---------------- fly to ---------------- */
   useEffect(() => {
     const mapInstance = map.current;
-    if (!mapInstance || !ready || !focus) return;
+    if (!mapInstance || !ready || !focus || appliedFocusKey.current === focus.key) return;
+    appliedFocusKey.current = focus.key;
     mapInstance.flyTo({
       center: [focus.lng, focus.lat],
       zoom: focus.zoom ?? 16.5,
@@ -1081,6 +1107,7 @@ export default function MapView({
       className={className}
       role="application"
       aria-label={t("a11y.map")}
+      data-basemap={basemap}
       data-testid="map"
     />
   );

@@ -76,9 +76,11 @@ shimmer for loading, 200 ms colour/transform transitions on controls. Everything
   same time, so the two never overlap.
 - The top bar is retractable: clicking it collapses the whole header down to the app icon, which
   keeps **exactly** its expanded position (same left inset and glyph), and clicking again restores
-  it. The bar itself carries no tooltip — it sits against the window edge, where a bubble would be
-  clipped to a stray sliver; controls inside it use `.tip-below` so their bubbles open downwards.
-  Controls inside the bar stop propagation so they keep working.
+  it. The basemap toggle sits between the language and source-information controls; its label names
+  the destination (`POSITRON` or `OSM`), and the selected basemap persists locally. The bar itself
+  carries no tooltip — it sits against the window edge, where a bubble would be clipped to a stray
+  sliver; controls inside it use `.tip-below` so their bubbles open downwards. Controls inside the
+  bar stop propagation so they keep working.
 - Floating cards use `.panel` (96% ivory surface + 16 px blur + hairline + shadow) and one
   of two radii: card `20px`, control `12px`. Inset layer cards use `14px`. Cards never position themselves — the parent
   owns layout so the map can inset them.

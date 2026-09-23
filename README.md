@@ -107,7 +107,7 @@ on an empty map until a layer is switched on; the keyless live traffic-image mir
 | EV charging | LTA DataMall `EVCBatch` — live availability by connector and power rating |
 | School & silver zones | data.gov.sg — LTA School Zone `d_abf023b3…` (211) and LTA Silver Zone `d_dc343c02…` (20) |
 | Expressway times & EMAS | LTA DataMall `EstTravelTimes` and `VMS` |
-| Basemap | OpenStreetMap standard raster tiles (keyless), with automatic fallback from an optional custom MapLibre style |
+| Basemaps | OpenStreetMap standard raster tiles (default) and OpenFreeMap Positron vector tiles, both keyless |
 
 ## Setup
 
@@ -121,13 +121,11 @@ npm run dev
 
 ```
 DATAMALL_ACCOUNT_KEY=your_datamall_account_key
-# optional: override the default OpenStreetMap basemap with any MapLibre style URL
-NEXT_PUBLIC_MAP_STYLE=https://example.com/maplibre-style.json
 ```
 
-The DataMall key is used **server-side only** — it is never sent to the browser. The standard
-OpenStreetMap basemap needs no configuration; if a custom style cannot be loaded, the map falls
-back to OpenStreetMap automatically.
+The DataMall key is used **server-side only** — it is never sent to the browser. The map defaults
+to OpenStreetMap and the header toggle switches to OpenFreeMap Positron. The last choice is stored
+in the browser; neither basemap needs configuration or an API key.
 
 ## Scripts
 

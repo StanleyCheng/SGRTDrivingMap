@@ -10,6 +10,10 @@ const en = {
   "lang.en": "Eng",
   "lang.zh": "繁中",
   "lang.switch": "Switch language",
+  "map.positron": "POSITRON",
+  "map.osm": "OSM",
+  "map.switchToPositron": "Switch basemap to OpenFreeMap Positron",
+  "map.switchToOsm": "Switch basemap to OpenStreetMap",
 
   "panel.title": "Data layers",
   "panel.collapse": "Collapse panel",
@@ -221,6 +225,9 @@ const en = {
     "Static GitHub Pages build: camera layers are baked from the official datasets at build time; live traffic images are fetched straight from data.gov.sg every 60 seconds.",
   "src.gapNote":
     "Average-speed camera zones (Tanah Merah Coast Road) are published by the Traffic Police only as a web page — not as an open dataset or API — so they are not plotted here:",
+  "src.basemapOsm": "OpenStreetMap Standard · © OpenStreetMap contributors",
+  "src.basemapPositron":
+    "OpenFreeMap Positron · OpenFreeMap © OpenMapTiles · Data from OpenStreetMap",
   "err.loadFailed": "Couldn't load this layer",
   "err.map": "The map component failed to load.",
   "err.offline": "No network connection to the data source.",
@@ -244,6 +251,10 @@ const zh: Record<keyof typeof en, string> = {
   "lang.en": "English",
   "lang.zh": "繁中",
   "lang.switch": "切換語言",
+  "map.positron": "POSITRON",
+  "map.osm": "OSM",
+  "map.switchToPositron": "切換至 OpenFreeMap Positron 底圖",
+  "map.switchToOsm": "切換至 OpenStreetMap 底圖",
 
   "panel.title": "資料圖層",
   "panel.collapse": "收起面板",
@@ -452,6 +463,9 @@ const zh: Record<keyof typeof en, string> = {
     "此為 GitHub Pages 靜態版本：攝影機圖層於建置時由官方數據集產生；實時交通影像每 60 秒直接從 data.gov.sg 取得。",
   "src.gapNote":
     "平均車速攝影機區域（丹那美拉海岸路）只在交通警察網頁公布，未提供開放數據或 API，因此未顯示於此地圖：",
+  "src.basemapOsm": "OpenStreetMap 標準地圖 · © OpenStreetMap 貢獻者",
+  "src.basemapPositron":
+    "OpenFreeMap Positron · OpenFreeMap © OpenMapTiles · 地圖資料來自 OpenStreetMap",
   "err.loadFailed": "此圖層載入失敗",
   "err.map": "地圖元件載入失敗。",
   "err.offline": "無法連接資料來源網絡。",

@@ -165,6 +165,35 @@ body {
   border-color: var(--line-strong);
 }
 
+.atlas-basemap-button {
+  display: grid;
+  min-width: 78px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  transition: background 180ms, border-color 180ms, color 180ms;
+}
+
+.atlas-basemap-button:hover {
+  border-color: var(--line-strong);
+  background: var(--mint);
+  color: var(--ink);
+}
+
+.atlas-basemap-button[data-basemap="positron"] {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--line));
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
+}
+
 .atlas-layers {
   display: flex;
   flex-direction: column;
