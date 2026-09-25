@@ -17,9 +17,6 @@
 /.next/
 /out/
 
-# production
-/build
-
 # misc
 .DS_Store
 *.pem
@@ -33,9 +30,6 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -44,9 +38,9 @@ next-env.d.ts
 /.cache
 
 # static export for GitHub Pages
-/out
 /public/data
-dist
+# left behind by an interrupted build (scripts/build-static.mjs restores it)
+/api-backup-*
 
 # keep the env template in git
 !.env.example

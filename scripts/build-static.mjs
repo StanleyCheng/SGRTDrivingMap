@@ -5,6 +5,10 @@
  *    captured by the last `?refresh=1` run — see doc/build-report.md).
  * 2. Moves app/api aside for the build, because route handlers are incompatible
  *    with `output: 'export'`; it is always restored afterwards.
+ *    Considered and rejected: dropping `.ts` from `pageExtensions` in static
+ *    mode, which does keep route.ts out of the export. It is documented for the
+ *    Pages Router and also governs middleware/proxy discovery, so a future
+ *    middleware would silently disappear from this build.
  * 3. Runs `next build` with STATIC_EXPORT=1, writing out/.
  *
  * Copy+delete is used instead of rename because OneDrive on Windows denies
@@ -36,8 +40,11 @@ const roadBaked = path.join(root, "public", "data", "road-conditions");
  */
 function bakeRoadConditions() {
   if (!fs.existsSync(roadSeed)) {
-    console.log("[build-static] no road-conditions seed; driver layers will be empty on Pages");
-    return;
+    // Skipping this silently keeps a previous public/data in place, and on a
+    // fresh checkout it would publish a site whose driver layers 404. Fail.
+    throw new Error(
+      `missing ${path.relative(root, roadSeed)} — refresh it from a running server (see doc/build-report.md)`,
+    );
   }
   const payload = JSON.parse(fs.readFileSync(roadSeed, "utf8"));
   const byLayer = new Map();
@@ -90,6 +97,34 @@ function bakeSnapshot() {
   console.log(`[build-static] baked ${points.length} camera records from snapshot ${generatedAt}`);
 }
 
+/**
+ * The Pages site is only correct if the pages themselves and every baked data
+ * file the browser fetches made it into out/. A half-written export must fail
+ * the build rather than deploy.
+ */
+function assertExport() {
+  const dataDir = path.join(root, "out", "data");
+  const index = path.join(dataDir, "road-conditions", "index.json");
+  const required = [
+    path.join(root, "out", "index.html"),
+    path.join(dataDir, "cameras.json"),
+    index,
+  ];
+  if (fs.existsSync(index)) {
+    const payload = JSON.parse(fs.readFileSync(index, "utf8"));
+    for (const layer of payload.layers ?? []) {
+      required.push(path.join(dataDir, "road-conditions", `${layer.id}.json`));
+    }
+  }
+  const missing = required.filter((file) => !fs.existsSync(file));
+  if (missing.length) {
+    throw new Error(
+      `static export is incomplete; missing ${missing.map((f) => path.relative(root, f)).join(", ")}`,
+    );
+  }
+  console.log(`[build-static] verified ${required.length} exported files`);
+}
+
 let apiMovedAside = false;
 function restoreApi() {
   if (!apiMovedAside) return;
@@ -116,6 +151,16 @@ try {
   // Preserve .next/cache, which is the reusable build cache documented by Next.
   fs.rmSync(nextDevDir, { recursive: true, force: true });
 
+  // A run killed between the move and the restore (SIGKILL, VM teardown) leaves
+  // the API routes in .api-backup-<pid>; put them back instead of failing.
+  if (!fs.existsSync(apiDir)) {
+    const rescued = fs.readdirSync(root).filter((name) => name.startsWith(".api-backup-"));
+    if (rescued.length === 1) {
+      fs.cpSync(path.join(root, rescued[0]), apiDir, { recursive: true });
+      fs.rmSync(path.join(root, rescued[0]), { recursive: true, force: true });
+      console.log(`[build-static] restored src/app/api from ${rescued[0]} (earlier run was interrupted)`);
+    }
+  }
   if (!fs.existsSync(apiDir)) throw new Error("src/app/api not found; is another build running?");
   fs.cpSync(apiDir, backupDir, { recursive: true });
   fs.rmSync(apiDir, { recursive: true });
@@ -134,4 +179,6 @@ try {
 }
 
 if (process.exitCode) throw new Error(`[build-static] next build failed with exit code ${process.exitCode}`);
+assertExport();
+if (!fs.existsSync(apiDir)) throw new Error("[build-static] src/app/api was not restored");
 console.log(`[build-static] static export written to ${path.join(root, "out")}`);
