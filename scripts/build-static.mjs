@@ -2,7 +2,7 @@
  * Static export for GitHub Pages.
  *
  * 1. Bakes the official camera datasets into public/data/cameras.json (real data,
- *    captured by the last `?refresh=1` run — see doc/2026-09-21-design.md).
+ *    captured by the last `?refresh=1` run — see doc/build-report.md).
  * 2. Moves app/api aside for the build, because route handlers are incompatible
  *    with `output: 'export'`; it is always restored afterwards.
  * 3. Runs `next build` with STATIC_EXPORT=1, writing out/.

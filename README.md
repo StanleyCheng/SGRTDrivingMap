@@ -7,8 +7,8 @@ safety zones and expressway advisories.
 
 - **Live site (GitHub Pages):** https://stanleycheng.github.io/SGRTTrafficInfo/
 - **Repository:** https://github.com/StanleyCheng/SGRTTrafficInfo
-- **Build report & decisions:** [`doc/2026-09-21-design.md`](doc/2026-09-21-design.md)
-- **Live layer feature notes:** [`doc/2026-09-22.md`](doc/2026-09-22.md)
+- **Build report & decisions:** [`doc/build-report.md`](doc/build-report.md)
+- **Live layer feature notes:** [`doc/live-layers.md`](doc/live-layers.md)
 - **UI design system:** [`DESIGN.md`](DESIGN.md)
 
 ## Two ways to run it

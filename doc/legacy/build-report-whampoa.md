@@ -2,6 +2,9 @@
 
 **Build report · 2026-09-21**
 
+> **Superseded · pre-rename copy.** The pre-rename ("Whampoa") build report, kept for reference.
+> Current build report: [`doc/build-report.md`](../build-report.md).
+
 A bilingual (English / 繁體中文) single-page map of every official camera and detection
 point that the Singapore Government publishes as open data, plus the still-live LTA
 traffic snapshot images.
