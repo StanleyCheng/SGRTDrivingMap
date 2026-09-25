@@ -1,3 +1,4 @@
+import { withoutRetiredCameras } from "../camera-snapshot";
 import { LAYERS } from "../layers";
 import type {
   CameraPoint,
@@ -291,28 +292,6 @@ async function loadCameras(): Promise<CameraPayload> {
   return { points: built.points, layers: built.layers, failures: built.failures };
 }
 
-/** Strip the unrelated illegal-parking camera inventory from older cached seeds. */
-function currentSnapshotPayload(payload: CameraPayload): CameraPayload {
-  const points = payload.points.filter((point) => point.layer !== "snapshot" || point.live);
-  const snapshotCount = points.filter((point) => point.layer === "snapshot").length;
-  const layers = payload.layers.map((layer) =>
-    layer.id === "snapshot"
-      ? {
-          ...layer,
-          sources: layer.sources.filter(
-            (source) =>
-              !source.url.includes("d_147f4906651f5b32925dfe6560296161") &&
-              !source.name.includes("Road Camera locations"),
-          ),
-          count: snapshotCount,
-          liveCount: snapshotCount,
-          kinds: { snapshot: snapshotCount },
-        }
-      : layer,
-  );
-  return { ...payload, points, layers };
-}
-
 /** Resolve cached cameras; refresh in the background when older than the TTL. */
 export async function getCameras(opts: { force?: boolean } = {}): Promise<CamerasResponse> {
   let entry =
@@ -328,7 +307,7 @@ export async function getCameras(opts: { force?: boolean } = {}): Promise<Camera
       try {
         // Prune before caching: `.cache/cameras.json` is the documented re-seed
         // source, so it must never contain the illegal-parking inventory.
-        const built = currentSnapshotPayload(await loadCameras());
+        const built = withoutRetiredCameras(await loadCameras());
         entry = { data: built, generatedAt: new Date().toISOString() };
         fetchedNow = true;
         writeMemory(CAMERAS_KEY, entry);
@@ -340,7 +319,7 @@ export async function getCameras(opts: { force?: boolean } = {}): Promise<Camera
       // Serve now, refresh behind the request.
       void loadCameras()
         .then((raw) => {
-          const built = currentSnapshotPayload(raw);
+          const built = withoutRetiredCameras(raw);
           const fresh = { data: built, generatedAt: new Date().toISOString() };
           writeMemory(CAMERAS_KEY, fresh);
           return writeDisk(CAMERAS_KEY, fresh);
@@ -351,7 +330,7 @@ export async function getCameras(opts: { force?: boolean } = {}): Promise<Camera
 
   if (!entry) throw new UpstreamError("No camera data available from data.gov.sg");
   if (!readMemory(CAMERAS_KEY)) writeMemory(CAMERAS_KEY, entry);
-  const data = currentSnapshotPayload(entry.data);
+  const data = withoutRetiredCameras(entry.data);
 
   return {
     generatedAt: entry.generatedAt,

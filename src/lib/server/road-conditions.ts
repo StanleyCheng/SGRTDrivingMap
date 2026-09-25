@@ -410,11 +410,4 @@ export const ROAD_CONDITION_SOURCES: SourceDefinition[] = [
   ),
 ];
 
-export const ROAD_CONDITION_LAYERS: RoadLayerId[] = [
-  "traffic-speed",
-  "incidents",
-  "hazards",
-  "roadworks",
-];
-
 export const ROAD_CONDITIONS_DOCUMENTATION_URL = DATAMALL_DOCS;

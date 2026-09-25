@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import type { StringKey } from "@/lib/i18n";
-import { ROAD_LAYER_COLOR, ROAD_LAYER_ORDER } from "@/lib/layers";
+import { ROAD_LAYERS as ROAD_LAYER_REGISTRY, ROAD_LAYER_ORDER } from "@/lib/layers";
 import type { LayerId, RoadLayerId, SourceStatus } from "@/lib/types";
 
 /**
@@ -20,11 +20,14 @@ export interface RoadLayerDef {
   group: "live" | "route";
 }
 
-/** Panel priority order, exactly as specified: live feed first, route extras after. */
-export const ROAD_LAYERS: RoadLayerDef[] = ROAD_LAYER_ORDER.map((id, index) => ({
+/**
+ * Panel order and grouping come straight from the shared registry, so the rail
+ * cannot drift from the layers the map actually draws.
+ */
+export const ROAD_LAYERS: RoadLayerDef[] = ROAD_LAYER_REGISTRY.map(({ id, color, group }) => ({
   id,
-  color: ROAD_LAYER_COLOR[id],
-  group: index < 4 ? "live" : "route",
+  color,
+  group,
 }));
 
 export const LIVE_ROAD_LAYERS = ROAD_LAYERS.filter((layer) => layer.group === "live");

@@ -1,7 +1,8 @@
+import { ROAD_LAYER_ORDER } from "../layers";
 import type { RoadConditionsResponse, RoadLayerId } from "../types";
 import { aggregateStatus, buildLayer, featuresForClient, loadSources } from "./feeds";
-import { MOBILITY_LAYERS, MOBILITY_SOURCES } from "./mobility";
-import { ROAD_CONDITION_LAYERS, ROAD_CONDITION_SOURCES } from "./road-conditions";
+import { MOBILITY_SOURCES } from "./mobility";
+import { ROAD_CONDITION_SOURCES } from "./road-conditions";
 
 /**
  * The single aggregation point for every driver-facing overlay.
@@ -12,7 +13,8 @@ import { ROAD_CONDITION_LAYERS, ROAD_CONDITION_SOURCES } from "./road-conditions
  */
 const SOURCES = [...ROAD_CONDITION_SOURCES, ...MOBILITY_SOURCES];
 
-export const LIVE_LAYER_IDS: RoadLayerId[] = [...ROAD_CONDITION_LAYERS, ...MOBILITY_LAYERS];
+/** The registry order in @/lib/layers is the single ordering for the API too. */
+export const LIVE_LAYER_IDS: RoadLayerId[] = ROAD_LAYER_ORDER;
 
 export async function getLiveLayers(): Promise<RoadConditionsResponse> {
   const loaded = await loadSources(SOURCES);

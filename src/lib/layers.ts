@@ -111,30 +111,131 @@ export const LAYER_BY_ID = new Map(LAYERS.map((l) => [l.id, l]));
  * Every driver-facing overlay, in panel priority order, with the CSS variable
  * that carries its signal colour. Colour is always paired with a distinct
  * glyph, so hue is never the only way to tell two layers apart.
+ *
+ * This registry is the single source of truth: the ordered id list, the colour
+ * map, the default view, the live/route split and the MapLibre layer ids per
+ * overlay are all derived from it, so adding a layer is one entry here.
  */
-export const ROAD_LAYER_ORDER: RoadLayerId[] = [
-  "traffic-speed",
-  "incidents",
-  "hazards",
-  "roadworks",
-  "parking",
-  "erp",
-  "ev",
-  "zones",
-  "expressway",
+export interface RoadLayerDefinition {
+  id: RoadLayerId;
+  /** CSS custom property holding the signal colour. */
+  color: string;
+  /** Panel group: the live road conditions lead, the route extras follow. */
+  group: "live" | "route";
+  /** Driver layers 1-2 carry the default view; the other seven start off. */
+  defaultOn: boolean;
+  /** MapLibre layer ids this overlay owns, in draw order. */
+  drawLayers: string[];
+}
+
+export const ROAD_LAYERS: RoadLayerDefinition[] = [
+  {
+    id: "traffic-speed",
+    color: "var(--c-traffic)",
+    group: "live",
+    defaultOn: true,
+    drawLayers: [
+      "road-traffic-speed-casing",
+      "road-traffic-speed-line",
+      "road-traffic-speed-hit",
+      "road-traffic-speed-points",
+    ],
+  },
+  {
+    id: "incidents",
+    color: "var(--c-incident)",
+    group: "live",
+    defaultOn: true,
+    drawLayers: ["road-incidents-points", "road-incidents-hit"],
+  },
+  {
+    id: "hazards",
+    color: "var(--c-hazard)",
+    group: "live",
+    defaultOn: false,
+    drawLayers: ["road-hazards-points", "road-hazards-hit"],
+  },
+  {
+    id: "roadworks",
+    color: "var(--c-roadworks)",
+    group: "live",
+    defaultOn: false,
+    drawLayers: ["road-roadworks-points", "road-roadworks-hit"],
+  },
+  {
+    id: "parking",
+    color: "var(--c-parking)",
+    group: "route",
+    defaultOn: false,
+    drawLayers: ["road-parking-points", "road-parking-hit"],
+  },
+  {
+    id: "erp",
+    color: "var(--c-erp)",
+    group: "route",
+    defaultOn: false,
+    drawLayers: ["road-erp-casing", "road-erp-line", "road-erp-hit"],
+  },
+  {
+    id: "ev",
+    color: "var(--c-ev)",
+    group: "route",
+    defaultOn: false,
+    drawLayers: ["road-ev-points", "road-ev-hit"],
+  },
+  {
+    id: "zones",
+    color: "var(--c-zones)",
+    group: "route",
+    defaultOn: false,
+    drawLayers: [
+      "road-zones-fill",
+      "road-zones-outline",
+      "road-zones-pin",
+      "road-zones-label",
+      "road-zones-hit",
+    ],
+  },
+  {
+    id: "expressway",
+    color: "var(--c-expressway)",
+    group: "route",
+    defaultOn: false,
+    drawLayers: ["road-expressway-points", "road-expressway-hit"],
+  },
 ];
 
-export const ROAD_LAYER_COLOR: Record<RoadLayerId, string> = {
-  "traffic-speed": "var(--c-traffic)",
-  incidents: "var(--c-incident)",
-  hazards: "var(--c-hazard)",
-  roadworks: "var(--c-roadworks)",
-  parking: "var(--c-parking)",
-  erp: "var(--c-erp)",
-  ev: "var(--c-ev)",
-  zones: "var(--c-zones)",
-  expressway: "var(--c-expressway)",
-};
+function keyedByRoadLayer<T>(pick: (def: RoadLayerDefinition) => T): Record<RoadLayerId, T> {
+  return Object.fromEntries(ROAD_LAYERS.map((def) => [def.id, pick(def)])) as Record<
+    RoadLayerId,
+    T
+  >;
+}
+
+/** Compile-time guard: a new `RoadLayerId` must be given a registry entry. */
+const EVERY_ROAD_LAYER_DECLARED: Record<RoadLayerId, true> = keyedByRoadLayer(() => true);
+void EVERY_ROAD_LAYER_DECLARED;
+
+/** Panel priority order. */
+export const ROAD_LAYER_ORDER: RoadLayerId[] = ROAD_LAYERS.map((def) => def.id);
+
+/** Signal colour per overlay. */
+export const ROAD_LAYER_COLOR: Record<RoadLayerId, string> = keyedByRoadLayer((def) => def.color);
+
+/** The default view: only the first two driver layers are on. */
+export const ROAD_LAYER_DEFAULTS: Record<RoadLayerId, boolean> = keyedByRoadLayer(
+  (def) => def.defaultOn,
+);
+
+/** MapLibre layer ids per overlay, for visibility toggling. */
+export const ROAD_DRAW_LAYERS: Record<RoadLayerId, string[]> = keyedByRoadLayer(
+  (def) => def.drawLayers,
+);
+
+/** The four live road-condition overlays, in panel order. */
+export const LIVE_ROAD_LAYER_IDS: RoadLayerId[] = ROAD_LAYERS.filter(
+  (def) => def.group === "live",
+).map((def) => def.id);
 
 /**
  * Official documentation surfaced by the route-aware overlays. Kept here (not

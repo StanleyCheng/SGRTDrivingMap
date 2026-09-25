@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import maplibregl, { type Map as MlMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { StringKey } from "@/lib/i18n";
-import { LAYERS, ROAD_LAYER_COLOR, ROAD_LAYER_ORDER } from "@/lib/layers";
+import { LAYERS, LIVE_ROAD_LAYER_IDS, ROAD_DRAW_LAYERS, ROAD_LAYER_COLOR, ROAD_LAYER_ORDER } from "@/lib/layers";
 import type {
   CameraKind,
   CameraPoint,
@@ -88,25 +88,10 @@ const ROAD_MARKER_KINDS = [
 type RoadMarkerKind = (typeof ROAD_MARKER_KINDS)[number];
 
 /**
- * Which layer owns which MapLibre layer ids. Expressway advisories deliberately
- * have no map layer — they are compact cards in the panel, never map clutter.
+ * Which MapLibre layers each overlay owns lives in the shared registry beside
+ * its colour and default view. Expressway advisories deliberately own no map
+ * layer — they are compact cards in the panel, never map clutter.
  */
-const ROAD_DRAW_LAYERS: Record<RoadLayerId, string[]> = {
-  "traffic-speed": [
-    "road-traffic-speed-casing",
-    "road-traffic-speed-line",
-    "road-traffic-speed-hit",
-    "road-traffic-speed-points",
-  ],
-  incidents: ["road-incidents-points", "road-incidents-hit"],
-  hazards: ["road-hazards-points", "road-hazards-hit"],
-  roadworks: ["road-roadworks-points", "road-roadworks-hit"],
-  parking: ["road-parking-points", "road-parking-hit"],
-  ev: ["road-ev-points", "road-ev-hit"],
-  erp: ["road-erp-casing", "road-erp-line", "road-erp-hit"],
-  zones: ["road-zones-fill", "road-zones-outline", "road-zones-pin", "road-zones-label", "road-zones-hit"],
-  expressway: ["road-expressway-points", "road-expressway-hit"],
-};
 
 /**
  * Zone names are worth reading only when zoomed in; the coloured boundary itself
@@ -561,7 +546,7 @@ export default function MapView({
     // 2–4 · alert icons (accidents, hazards, works) and layer 1's heavy-traffic mark.
     // Layer 1's own hit area is the wide speed-band line added above, so only its
     // marker symbols are added here.
-    for (const id of ["traffic-speed", "incidents", "hazards", "roadworks"] as RoadLayerId[]) {
+    for (const id of LIVE_ROAD_LAYER_IDS) {
       mapInstance.addLayer({
         id: `road-${id}-points`,
         type: "symbol",
@@ -799,21 +784,14 @@ export default function MapView({
       paint: { "fill-color": "#17130f", "fill-opacity": 0.1 },
     });
 
+    // Every overlay's own hit/points pair, except ERP and the safety zones, which
+    // carry bespoke interactive layers listed explicitly around this spread.
+    const roadPointPairLayers = ROAD_LAYER_ORDER.filter((id) => id !== "erp" && id !== "zones");
     const roadInteractive = [
       "road-traffic-speed-hit",
       "road-erp-hit",
       "road-zones-hit",
-      ...(
-        [
-          "traffic-speed",
-          "incidents",
-          "hazards",
-          "roadworks",
-          "parking",
-          "ev",
-          "expressway",
-        ] as RoadLayerId[]
-      ).flatMap((id) => [`road-${id}-hit`, `road-${id}-points`]),
+      ...roadPointPairLayers.flatMap((id) => [`road-${id}-hit`, `road-${id}-points`]),
       "road-zones-label",
       "road-zones-pin",
     ];

@@ -15,7 +15,7 @@ import {
   STATIC_MODE,
 } from "@/lib/client-data";
 import { geometryFocus, geometryZoom } from "@/lib/geometry";
-import { ROAD_LAYER_ORDER } from "@/lib/layers";
+import { ROAD_LAYER_DEFAULTS, ROAD_LAYER_ORDER } from "@/lib/layers";
 import { withCurrentTrafficCameras } from "@/lib/traffic-images";
 import {
   DEFAULT_LAYER_FILTERS,
@@ -34,19 +34,9 @@ const MapView = dynamic(() => import("@/components/MapView"), {
   loading: () => <div className="skeleton h-full w-full rounded-none" />,
 });
 
-// Layers 1 and 2 (live congestion, and accident/breakdown alerts) are the
-// default view per the agreed layer priority; the other seven start switched off.
-const ROAD_DEFAULTS: Record<RoadLayerId, boolean> = {
-  "traffic-speed": true,
-  incidents: true,
-  hazards: false,
-  roadworks: false,
-  parking: false,
-  erp: false,
-  ev: false,
-  zones: false,
-  expressway: false,
-};
+// Layers 1 and 2 (live congestion, and accident/breakdown alerts) carry the
+// default view per the agreed layer priority. Which two those are lives in the
+// registry in @/lib/layers, so the panel, the map and this default cannot drift.
 // The four live road layers need the DataMall key, so a static build has none of
 // them. Defaulting every camera layer off as well would open on an empty map,
 // so in static mode the camera layers carry the default view instead.
@@ -69,7 +59,7 @@ export default function App() {
   const [roadLoading, setRoadLoading] = useState(true);
   const [roadError, setRoadError] = useState<string | null>(null);
   const [active, setActive] = useState<Record<LayerId, boolean>>(ALL_ON);
-  const [roadActive, setRoadActive] = useState<Record<RoadLayerId, boolean>>(ROAD_DEFAULTS);
+  const [roadActive, setRoadActive] = useState<Record<RoadLayerId, boolean>>(ROAD_LAYER_DEFAULTS);
   const [incidentRoute, setIncidentRoute] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedRoadId, setSelectedRoadId] = useState<string | null>(null);

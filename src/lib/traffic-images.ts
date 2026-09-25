@@ -1,3 +1,4 @@
+import { withoutRetiredCameras } from "./camera-snapshot";
 import type {
   CameraKind,
   CameraPoint,
@@ -85,17 +86,14 @@ export function withCurrentTrafficCameras(
   traffic: TrafficImagesResponse | null,
 ): CamerasResponse {
   const snapshotPoints = (traffic?.cameras ?? []).map(trafficCameraPoint);
-  const points = [...base.points.filter((point) => point.layer !== "snapshot"), ...snapshotPoints];
-  const layers = base.layers.map((layer) => {
+  // A base payload — a bundled seed, or one cached before the inventory was
+  // retired — still has to lose the cameras that publish no image, before the
+  // live feed is merged in.
+  const pruned = withoutRetiredCameras(base);
+  const layers = pruned.layers.map((layer) => {
     if (layer.id !== "snapshot") return layer;
-    const sources = layer.sources.filter(
-      (source) =>
-        !source.url.includes("d_147f4906651f5b32925dfe6560296161") &&
-        !source.name.includes("Road Camera locations"),
-    );
     return {
       ...layer,
-      sources,
       count: snapshotPoints.length,
       liveCount: snapshotPoints.length,
       status: traffic?.status ?? "ok",
@@ -103,7 +101,7 @@ export function withCurrentTrafficCameras(
       kinds: { snapshot: snapshotPoints.length },
     };
   });
-  return { ...base, layers, points };
+  return { ...pruned, layers, points: [...pruned.points, ...snapshotPoints] };
 }
 
 /** Point shape used by the LayerInfo.kinds map. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { ROAD_LAYER_ORDER } from "./layers";
 import { normaliseDataGovTraffic, retargetSourcesForStatic } from "./traffic-images";
 import type {
   CamerasResponse,
@@ -47,21 +48,10 @@ export async function loadTrafficImages(signal?: AbortSignal): Promise<TrafficIm
   }
 }
 
-/** Every driver-facing layer, in panel priority order. */
-const ROAD_LAYER_IDS: RoadLayerId[] = [
-  "traffic-speed",
-  "incidents",
-  "hazards",
-  "roadworks",
-  "parking",
-  "erp",
-  "ev",
-  "zones",
-  "expressway",
-];
+/** Every driver-facing layer, in panel priority order — from the shared registry. */
 
 function unavailableRoadConditions(error: string): RoadConditionsResponse {
-  const layers: RoadConditionLayerInfo[] = ROAD_LAYER_IDS.map((id) => ({
+  const layers: RoadConditionLayerInfo[] = ROAD_LAYER_ORDER.map((id) => ({
     id,
     count: 0,
     mappedCount: 0,
@@ -96,7 +86,7 @@ export async function loadRoadConditions(
       });
       if (!indexResponse.ok) throw new Error(`HTTP ${indexResponse.status}`);
       const index = (await indexResponse.json()) as RoadConditionsResponse;
-      const wanted = options.layers ?? ROAD_LAYER_IDS;
+      const wanted = options.layers ?? ROAD_LAYER_ORDER;
       const parts = await Promise.all(
         wanted.map(async (id) => {
           const response = await fetch(`${BASE}/data/road-conditions/${id}.json`, {

@@ -72,6 +72,8 @@ function bakeSnapshot() {
   // Older seeds included the separate illegal-parking camera inventory in the
   // snapshot layer. Static builds expose only cameras that the image feed has
   // actually published; the browser then replaces these from the live feed.
+  // The same rule lives in src/lib/camera-snapshot.ts for the server and the
+  // browser — keep the two in step when the inventory changes.
   const points = data.points.filter((point) => point.layer !== "snapshot" || point.live);
   const snapshotCount = points.filter((point) => point.layer === "snapshot").length;
   const layers = data.layers.map((layer) =>

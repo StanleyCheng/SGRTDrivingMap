@@ -1,5 +1,5 @@
 import erpZones from "@/data/erp-zones.json";
-import type { RoadConditionFeature, RoadLayerId, RoadPosition } from "../types";
+import type { RoadConditionFeature, RoadPosition } from "../types";
 import { ageMs, readDisk, readMemory, writeDisk, writeMemory, type CacheEntry } from "./cache";
 import {
   asNumber,
@@ -745,5 +745,3 @@ export const MOBILITY_SOURCES: SourceDefinition[] = [
     normalise: normaliseEmasMessages,
   },
 ];
-
-export const MOBILITY_LAYERS: RoadLayerId[] = ["parking", "erp", "ev", "zones", "expressway"];
