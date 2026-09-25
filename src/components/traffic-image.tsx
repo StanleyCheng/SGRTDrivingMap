@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { formatTime, relativeAge } from "@/lib/format";
 import { useI18n } from "./i18n-provider";
+import { ExternalIcon } from "./icons";
 
 export interface TrafficImageProps {
   url: string | null;
@@ -135,19 +136,7 @@ export function TrafficImage({
           className="mt-1 inline-flex items-center gap-1 text-[11px] text-[var(--muted)] hover:text-[var(--ink)]"
         >
           {t("detail.openFull")}
-          <svg
-            width="11"
-            height="11"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
-          </svg>
+          <ExternalIcon />
         </a>
       )}
     </div>

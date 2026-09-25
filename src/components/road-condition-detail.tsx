@@ -6,32 +6,8 @@ import { geometryFocus } from "@/lib/geometry";
 import { ROAD_LAYER_COLOR } from "@/lib/layers";
 import type { RoadConditionFeature, RoadConditionLayerInfo } from "@/lib/types";
 import { useI18n } from "./i18n-provider";
+import { CloseIcon, CrosshairIcon, ExternalIcon } from "./icons";
 import { LOT_TYPE_KEYS } from "./layer-ui";
-
-function CloseGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
-      <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  );
-}
-
-function CrosshairGlyph() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-    </svg>
-  );
-}
-
-function ExternalGlyph() {
-  return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
-    </svg>
-  );
-}
 
 interface RoadConditionDetailProps {
   feature: RoadConditionFeature;
@@ -188,7 +164,7 @@ export function RoadConditionDetail({
           aria-label={t("common.close")}
           className="tip tip-right atlas-icon-button -mt-1 -mr-1"
         >
-          <CloseGlyph />
+          <CloseIcon />
         </button>
       </div>
 
@@ -213,7 +189,7 @@ export function RoadConditionDetail({
           onClick={() => onZoom(feature)}
           className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-accent px-3.5 py-2 text-[12px] font-medium text-accent-ink transition-colors hover:bg-ink"
         >
-          <CrosshairGlyph />
+          <CrosshairIcon size={14} />
           {t("detail.zoom")}
         </button>
       </div>
@@ -226,7 +202,7 @@ export function RoadConditionDetail({
               <li key={`${source.name}:${source.url}`}>
                 <a href={source.url} target="_blank" rel="noreferrer" className="inline-flex items-start gap-1 text-[11px] leading-snug text-[var(--muted)] hover:text-[var(--ink)]">
                   <span>{source.name}</span>
-                  <span className="mt-0.5 shrink-0"><ExternalGlyph /></span>
+                  <span className="mt-0.5 shrink-0"><ExternalIcon /></span>
                 </a>
                 {source.fetchedAt && (
                   <p className="num text-[10px] text-[var(--muted)] opacity-80">

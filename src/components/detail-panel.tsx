@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { LAYER_BY_ID, layerColor } from "@/lib/layers";
 import type { CameraPoint, LayerInfo } from "@/lib/types";
 import { useI18n } from "./i18n-provider";
+import { CloseIcon, CrosshairIcon, ExternalIcon } from "./icons";
 import { TrafficImage } from "./traffic-image";
 
 export interface DetailImage {
@@ -22,59 +23,6 @@ export interface DetailPanelProps {
   onZoom: (point: CameraPoint) => void;
   onRetryImage?: () => void;
   className?: string;
-}
-
-function CloseGlyph() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <path d="M6 6l12 12M18 6 6 18" />
-    </svg>
-  );
-}
-
-function CrosshairGlyph({ size = 16 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-    </svg>
-  );
-}
-
-function ExternalGlyph() {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
-    </svg>
-  );
 }
 
 export function DetailPanel({
@@ -97,7 +45,7 @@ export function DetailPanel({
       <div className={shell}>
         <div className="flex items-start gap-2.5 py-1 text-[13px] text-[var(--muted)]">
           <span className="mt-0.5 shrink-0">
-            <CrosshairGlyph size={15} />
+            <CrosshairIcon size={15} />
           </span>
           <p className="leading-snug">{t("detail.empty")}</p>
         </div>
@@ -135,7 +83,7 @@ export function DetailPanel({
           aria-label={t("common.close")}
           className="tip tip-right atlas-icon-button -mt-1 -mr-1"
         >
-          <CloseGlyph />
+          <CloseIcon />
         </button>
       </div>
 
@@ -201,7 +149,7 @@ export function DetailPanel({
           onClick={() => onZoom(point)}
           className="inline-flex min-h-10 items-center gap-2 rounded-[var(--radius-control)] bg-accent px-3.5 py-2 text-[12px] font-medium text-accent-ink transition-colors hover:bg-ink"
         >
-          <CrosshairGlyph size={14} />
+          <CrosshairIcon size={14} />
           {t("detail.zoom")}
         </button>
       </div>
@@ -225,7 +173,7 @@ export function DetailPanel({
                       {lang === "zh" ? s.datasetZh : s.dataset}
                     </span>
                     <span className="mt-0.5 shrink-0">
-                      <ExternalGlyph />
+                      <ExternalIcon />
                     </span>
                   </a>
                   {live?.updatedAt && (

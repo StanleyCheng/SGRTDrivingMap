@@ -3,6 +3,7 @@
 import { useRef, useState, type CSSProperties } from "react";
 import type { StringKey } from "@/lib/i18n";
 import { formatDateTime } from "@/lib/format";
+import { CloseIcon } from "./icons";
 import { LAYERS, ROAD_LAYER_ORDER } from "@/lib/layers";
 import {
   DEFAULT_LAYER_FILTERS,
@@ -230,9 +231,7 @@ function LayerRail({
               aria-label={t("common.close")}
               className="atlas-icon-button -mt-1 -mr-1"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
+              <CloseIcon size={15} strokeWidth={1.8} />
             </button>
           </div>
 
