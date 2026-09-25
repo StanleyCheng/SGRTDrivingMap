@@ -8,25 +8,17 @@ import { LayerPanel } from "@/components/layer-panel";
 import { RoadConditionDetail } from "@/components/road-condition-detail";
 import { SourcesPanel } from "@/components/sources-panel";
 import type { BasemapId, MapFocus } from "@/components/MapView";
-import {
-  loadCameras,
-  loadRoadConditions,
-  loadTrafficImages,
-  STATIC_MODE,
-} from "@/lib/client-data";
+import { useCameras, useRoadConditions, useTrafficImages } from "@/hooks/use-live-data";
 import { geometryFocus, geometryZoom } from "@/lib/geometry";
 import { ROAD_LAYER_DEFAULTS, ROAD_LAYER_ORDER } from "@/lib/layers";
 import { withCurrentTrafficCameras } from "@/lib/traffic-images";
 import {
   DEFAULT_LAYER_FILTERS,
   type CameraPoint,
-  type CamerasResponse,
   type LayerFilters,
   type LayerId,
   type RoadConditionFeature,
-  type RoadConditionsResponse,
   type RoadLayerId,
-  type TrafficImagesResponse,
 } from "@/lib/types";
 
 const MapView = dynamic(() => import("@/components/MapView"), {
@@ -44,20 +36,12 @@ const MapView = dynamic(() => import("@/components/MapView"), {
 // driver layers 1 and 2 (live congestion, accidents & breakdowns) on and every
 // other layer — including these three camera layers — off.
 const ALL_ON: Record<LayerId, boolean> = { redlight: false, speed: false, snapshot: false };
-const TRAFFIC_POLL_MS = 60_000;
-const ROAD_POLL_MS = 60_000;
 const BASEMAP_STORAGE_KEY = "sgdi.basemap";
 
 export default function App() {
   const [basemap, setBasemap] = useState<BasemapId>("osm");
-  const [cameras, setCameras] = useState<CamerasResponse | null>(null);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [traffic, setTraffic] = useState<TrafficImagesResponse | null>(null);
-  const [trafficLoading, setTrafficLoading] = useState(true);
-  const [roadConditions, setRoadConditions] = useState<RoadConditionsResponse | null>(null);
-  const [roadLoading, setRoadLoading] = useState(true);
-  const [roadError, setRoadError] = useState<string | null>(null);
+  const { cameras, error: cameraError, retry: retryCameras } = useCameras();
+  const { traffic, loading: trafficLoading, reload: reloadTraffic } = useTrafficImages();
   const [active, setActive] = useState<Record<LayerId, boolean>>(ALL_ON);
   const [roadActive, setRoadActive] = useState<Record<RoadLayerId, boolean>>(ROAD_LAYER_DEFAULTS);
   const [incidentRoute, setIncidentRoute] = useState<string | null>(null);
@@ -94,41 +78,6 @@ export default function App() {
     });
   }, []);
 
-  /* ---------------- cameras ---------------- */
-  useEffect(() => {
-    const controller = new AbortController();
-    loadCameras({ refresh: reloadKey > 0, signal: controller.signal })
-      .then((data) => {
-        setCameras(data);
-        setCameraError(null);
-      })
-      .catch((err: Error) => {
-        if (err.name !== "AbortError") setCameraError(err.message);
-      });
-    return () => controller.abort();
-  }, [reloadKey]);
-
-  /* ---------------- live traffic images ---------------- */
-  const loadTraffic = useCallback(async (signal?: AbortSignal) => {
-    try {
-      setTraffic(await loadTrafficImages(signal));
-    } finally {
-      setTrafficLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void loadTraffic(controller.signal).catch((err: Error) => {
-      if (err.name !== "AbortError") throw err;
-    });
-    const timer = setInterval(() => void loadTraffic(), TRAFFIC_POLL_MS);
-    return () => {
-      controller.abort();
-      clearInterval(timer);
-    };
-  }, [loadTraffic]);
-
   /* ---------------- live road conditions ---------------- */
   // Only the layers that are switched on are fetched, so the default view stays
   // small. Toggling a layer changes this identity and refetches once.
@@ -136,70 +85,12 @@ export default function App() {
     () => ROAD_LAYER_ORDER.filter((id) => roadActive[id]),
     [roadActive],
   );
-
-  // Toggling refetches with the new layer set. Serialise that, and drop a reply that
-  // is no longer the newest: an older payload (from the poll or a retry) landing last
-  // would otherwise overwrite the features of the layer just switched on, leaving an
-  // icon that reads "on" above an empty map until the next poll.
-  const roadsBusy = useRef(false);
-  const roadsQueued = useRef<RoadLayerId[] | null>(null);
-  const roadsRequestId = useRef(0);
-
-  const loadRoads = useCallback(async () => {
-    if (roadsBusy.current) {
-      roadsQueued.current = activeRoadLayers;
-      return;
-    }
-    roadsBusy.current = true;
-    try {
-      let wanted = activeRoadLayers;
-      for (;;) {
-        roadsQueued.current = null;
-        const requestId = ++roadsRequestId.current;
-        const next = await loadRoadConditions({ layers: wanted });
-        // A newer request has already been issued; this reply is stale.
-        if (requestId !== roadsRequestId.current) break;
-        setRoadConditions((previous) => {
-          if (next.status !== "error" || next.features.length > 0 || !previous?.features.length) {
-            return next;
-          }
-          const message = next.error ?? "Live road conditions are temporarily unavailable";
-          return {
-            ...previous,
-            status: "stale",
-            fromCache: true,
-            error: message,
-            layers: previous.layers.map((layer) => ({
-              ...layer,
-              status: "stale",
-              error: message,
-            })),
-          };
-        });
-        setRoadError(next.status === "error" ? (next.error ?? null) : null);
-        // A layer was switched while that request was in flight: fetch the set the
-        // user is looking at now instead of leaving the map a layer behind.
-        const queued = roadsQueued.current;
-        if (!queued) break;
-        wanted = queued;
-      }
-    } catch (error) {
-      if ((error as Error).name !== "AbortError") setRoadError((error as Error).message);
-    } finally {
-      roadsBusy.current = false;
-      setRoadLoading(false);
-    }
-  }, [activeRoadLayers]);
-
-  useEffect(() => {
-    const initialTimer = window.setTimeout(() => void loadRoads(), 0);
-    // A static build reads one baked snapshot, so there is nothing to poll.
-    const timer = STATIC_MODE ? null : setInterval(() => void loadRoads(), ROAD_POLL_MS);
-    return () => {
-      clearTimeout(initialTimer);
-      if (timer) clearInterval(timer);
-    };
-  }, [loadRoads]);
+  const {
+    roadConditions,
+    loading: roadLoading,
+    error: roadError,
+    retry: retryRoads,
+  } = useRoadConditions(activeRoadLayers);
 
   /* ---------------- responsive defaults ---------------- */
   const initialised = useRef(false);
@@ -370,10 +261,7 @@ export default function App() {
           loading={!cameras && !cameraError}
           error={cameraError}
           generatedAt={cameras?.generatedAt ?? null}
-          onRetry={() => {
-            setCameraError(null);
-            setReloadKey((k) => k + 1);
-          }}
+          onRetry={retryCameras}
           roadConditions={roadConditions}
           roadActive={roadActive}
           onRoadToggle={toggleRoadLayer}
@@ -381,11 +269,7 @@ export default function App() {
           onIncidentRouteChange={setIncidentRoute}
           roadLoading={roadLoading}
           roadError={roadError}
-          onRoadRetry={() => {
-            setRoadError(null);
-            setRoadLoading(true);
-            void loadRoads();
-          }}
+          onRoadRetry={retryRoads}
           roadAvailable
           collapsed={collapsed}
           onCollapsedChange={setCollapsed}
@@ -419,7 +303,7 @@ export default function App() {
             imageError={traffic?.error ?? null}
             onClose={() => setSelectedId(null)}
             onZoom={(p) => focusOn(p, 17)}
-            onRetryImage={() => void loadTraffic()}
+            onRetryImage={() => void reloadTraffic()}
             className="max-h-[70vh] sm:max-h-[calc(100dvh-32px)]"
           />
         )}
